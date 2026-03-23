@@ -1,0 +1,5 @@
+{
+  "name": "AI Resume Analyzer",
+  "description": "An AI-powered resume analysis tool with Supabase backend for user authentication and data storage.",
+  "requestFramePermissions": []
+}
