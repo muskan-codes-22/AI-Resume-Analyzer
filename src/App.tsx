@@ -28,7 +28,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { getSupabase } from './lib/supabase';
-import { GoogleGenAI, Type } from "@google/genai";
+// NVIDIA NIM API used — no SDK import needed (native fetch)
 import toast, { Toaster } from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -572,116 +572,66 @@ const Dashboard = ({ user }: { user: any }) => {
         throw new Error('Could not extract text from the file. It might be empty or scanned.');
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Analyze the following resume against the job description. 
-        
-        System Prompt:
-        You are an expert ATS (Applicant Tracking System) and career coach AI. 
-        Analyze the given resume against the job description.
+      const BACKOFF_DELAYS_MS = [2000, 4000, 8000]; // exponential backoff: 2s → 4s → 8s
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      const isQuotaError = (status: number) => status === 429;
+      const isTimeoutError = (status: number) => status === 504;
 
-        Return ONLY a valid JSON object with this exact structure:
-        {
-          "candidate_name": "<name found in resume or 'Candidate'>",
-          "score": <number between 0-100>,
-          "matched_keywords": [<list of keywords found in both resume and JD>],
-          "missing_keywords": [<list of important keywords from JD missing in resume>],
-          "strengths": [<list of 3-5 strengths of the resume for this JD>],
-          "suggestions": [<list of 4-6 specific, actionable improvement suggestions>],
-          "summary": "<2-3 sentence professional, user-friendly summary of the match. Use the candidate's name naturally (proper case, not all caps) instead of 'the candidate' to keep the flow professional.>",
-          "formatting": {
-            "has_metrics": boolean,
-            "appropriate_length": boolean,
-            "uses_action_verbs": boolean,
-            "has_contact_info": boolean,
-            "tips": [<list of tips for failed checks>]
-          },
-          "skills_gap": {
-            "technical": {"matched": number, "total": number},
-            "soft_skills": {"matched": number, "total": number},
-            "domain": {"matched": number, "total": number},
-            "weakest_tip": "string"
-          },
-          "ats_compatibility": {
-            "score": number,
-            "rating": "string",
-            "issues": [<list of issues found>]
+      let rawText = '';
+      let lastError: any = null;
+
+      for (let attempt = 0; attempt <= BACKOFF_DELAYS_MS.length; attempt++) {
+        const attemptLabel = attempt === 0
+          ? 'Analyzing your resume...'
+          : `AI is busy, retrying... (attempt ${attempt + 1})`;
+        toast.loading(attemptLabel, { id: 'model-attempt' });
+
+        try {
+          const res = await fetch('/api/analyze-resume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText, jobDescription }),
+          });
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({ error: res.statusText }));
+            lastError = { status: res.status, message: errBody?.error || res.statusText };
+
+            if (isTimeoutError(res.status)) {
+              throw new Error('The AI request timed out after 30 seconds. Please try again — the server may be busy.');
+            }
+            if (isQuotaError(res.status) && attempt < BACKOFF_DELAYS_MS.length) {
+              const waitSec = BACKOFF_DELAYS_MS[attempt] / 1000;
+              toast.loading(`AI is busy, retrying in ${waitSec}s...`, { id: 'model-attempt' });
+              console.warn(`Quota hit on attempt ${attempt + 1}, waiting ${waitSec}s...`);
+              await sleep(BACKOFF_DELAYS_MS[attempt]);
+              continue;
+            }
+            throw new Error(`Analysis failed (${res.status}): ${lastError.message}`);
+          }
+
+          const data = await res.json();
+          rawText = data?.rawText ?? '';
+          toast.dismiss('model-attempt');
+          break; // success
+        } catch (fetchErr: any) {
+          lastError = fetchErr;
+          if (!isQuotaError(fetchErr?.status)) {
+            toast.dismiss('model-attempt');
+            throw fetchErr;
           }
         }
-        
-        Resume: ${resumeText}
-        Job Description: ${jobDescription}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              candidate_name: { type: Type.STRING },
-              score: { type: Type.NUMBER },
-              matched_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              missing_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-              suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-              summary: { type: Type.STRING },
-              formatting: {
-                type: Type.OBJECT,
-                properties: {
-                  has_metrics: { type: Type.BOOLEAN },
-                  appropriate_length: { type: Type.BOOLEAN },
-                  uses_action_verbs: { type: Type.BOOLEAN },
-                  has_contact_info: { type: Type.BOOLEAN },
-                  tips: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["has_metrics", "appropriate_length", "uses_action_verbs", "has_contact_info", "tips"]
-              },
-              skills_gap: {
-                type: Type.OBJECT,
-                properties: {
-                  technical: {
-                    type: Type.OBJECT,
-                    properties: {
-                      matched: { type: Type.NUMBER },
-                      total: { type: Type.NUMBER }
-                    },
-                    required: ["matched", "total"]
-                  },
-                  soft_skills: {
-                    type: Type.OBJECT,
-                    properties: {
-                      matched: { type: Type.NUMBER },
-                      total: { type: Type.NUMBER }
-                    },
-                    required: ["matched", "total"]
-                  },
-                  domain: {
-                    type: Type.OBJECT,
-                    properties: {
-                      matched: { type: Type.NUMBER },
-                      total: { type: Type.NUMBER }
-                    },
-                    required: ["matched", "total"]
-                  },
-                  weakest_tip: { type: Type.STRING }
-                },
-                required: ["technical", "soft_skills", "domain", "weakest_tip"]
-              },
-              ats_compatibility: {
-                type: Type.OBJECT,
-                properties: {
-                  score: { type: Type.NUMBER },
-                  rating: { type: Type.STRING },
-                  issues: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["score", "rating", "issues"]
-              }
-            },
-            required: ["candidate_name", "score", "matched_keywords", "missing_keywords", "strengths", "suggestions", "summary", "formatting", "skills_gap", "ats_compatibility"]
-          }
-        }
-      });
+      }
 
-      const result = JSON.parse(response.text);
+      toast.dismiss('model-attempt');
+
+      if (!rawText) {
+        throw new Error(`The AI is currently overloaded and all retry attempts were exhausted. Please wait a minute and try again.\n\nDetails: ${lastError?.message ?? String(lastError)}`);
+      }
+
+      // Strip markdown code fences if the model wraps the JSON anyway
+      const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const result = JSON.parse(jsonText);
       setAnalysisResult(result);
       
       if (result.formatting?.tips?.length === 0) {
