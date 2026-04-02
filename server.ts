@@ -10,7 +10,19 @@ import fs from 'fs';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Global error handlers to prevent crashes from uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+try {
+  dotenv.config();
+} catch (error) {
+  console.warn('Could not load .env file (expected in production):', error);
+}
 
 async function startServer() {
   const app = express();
@@ -177,4 +189,6 @@ ${jobDescription}`;
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('Fatal error starting server:', err);
+});
