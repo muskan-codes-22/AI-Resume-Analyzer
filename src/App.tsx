@@ -28,7 +28,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { getSupabase } from './lib/supabase';
-import { GoogleGenAI, Type } from "@google/genai";
+
 import toast, { Toaster } from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -847,188 +847,125 @@ const Dashboard = ({ user }: { user: any }) => {
         throw new Error('Could not extract text from the file. It might be empty or scanned.');
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Analyze the following resume against the job description. 
-        
-        System Prompt:
-        You are an expert ATS (Applicant Tracking System) and career coach AI. 
-        Analyze the given resume against the job description.
-
-        Return ONLY a valid JSON object with this exact structure:
-        {
-          "candidate_name": "<name found in resume or 'Candidate'>",
-          "score": <number between 0-100>,
-          "matched_keywords": [<list of keywords found in both resume and JD>],
-          "missing_keywords": [<list of important keywords from JD missing in resume>],
-          "strengths": [<list of 3-5 strengths of the resume for this JD>],
-          "suggestions": [<list of 4-6 specific, actionable improvement suggestions>],
-          "summary": "<2-3 sentence professional, user-friendly summary of the match. Use the candidate's name naturally (proper case, not all caps) instead of 'the candidate' to keep the flow professional.>",
-          "section_feedback": {
-            "summary": { "score": <0-100>, "feedback": "string" },
-            "experience": { "score": <0-100>, "feedback": "string" },
-            "education": { "score": <0-100>, "feedback": "string" },
-            "skills": { "score": <0-100>, "feedback": "string" }
-          },
-          "formatting": {
-            "has_metrics": boolean,
-            "appropriate_length": boolean,
-            "uses_action_verbs": boolean,
-            "has_contact_info": boolean,
-            "tips": [<list of tips for failed checks>]
-          },
-          "skills_gap": {
-            "technical": {"matched": number, "total": number},
-            "soft_skills": {"matched": number, "total": number},
-            "domain": {"matched": number, "total": number},
-            "weakest_tip": "string"
-          },
-          "ats_compatibility": {
-            "score": number,
-            "rating": "string",
-            "issues": [<list of issues found>]
-          }
-        }
-        
-        Resume: ${resumeText}
-        Job Description: ${jobDescription}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              candidate_name: { type: Type.STRING },
-              score: { type: Type.NUMBER },
-              matched_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              missing_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-              suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-              summary: { type: Type.STRING },
-              section_feedback: {
-                type: Type.OBJECT,
-                properties: {
-                  summary: {
-                    type: Type.OBJECT,
-                    properties: {
-                      score: { type: Type.NUMBER },
-                      feedback: { type: Type.STRING }
-                    },
-                    required: ["score", "feedback"]
-                  },
-                  experience: {
-                    type: Type.OBJECT,
-                    properties: {
-                      score: { type: Type.NUMBER },
-                      feedback: { type: Type.STRING }
-                    },
-                    required: ["score", "feedback"]
-                  },
-                  education: {
-                    type: Type.OBJECT,
-                    properties: {
-                      score: { type: Type.NUMBER },
-                      feedback: { type: Type.STRING }
-                    },
-                    required: ["score", "feedback"]
-                  },
-                  skills: {
-                    type: Type.OBJECT,
-                    properties: {
-                      score: { type: Type.NUMBER },
-                      feedback: { type: Type.STRING }
-                    },
-                    required: ["score", "feedback"]
-                  }
-                },
-                required: ["summary", "experience", "education", "skills"]
-              },
-              formatting: {
-                type: Type.OBJECT,
-                properties: {
-                  has_metrics: { type: Type.BOOLEAN },
-                  appropriate_length: { type: Type.BOOLEAN },
-                  uses_action_verbs: { type: Type.BOOLEAN },
-                  has_contact_info: { type: Type.BOOLEAN },
-                  tips: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["has_metrics", "appropriate_length", "uses_action_verbs", "has_contact_info", "tips"]
-              },
-              skills_gap: {
-                type: Type.OBJECT,
-                properties: {
-                  technical: {
-                    type: Type.OBJECT,
-                    properties: {
-                      matched: { type: Type.NUMBER },
-                      total: { type: Type.NUMBER }
-                    },
-                    required: ["matched", "total"]
-                  },
-                  soft_skills: {
-                    type: Type.OBJECT,
-                    properties: {
-                      matched: { type: Type.NUMBER },
-                      total: { type: Type.NUMBER }
-                    },
-                    required: ["matched", "total"]
-                  },
-                  domain: {
-                    type: Type.OBJECT,
-                    properties: {
-                      matched: { type: Type.NUMBER },
-                      total: { type: Type.NUMBER }
-                    },
-                    required: ["matched", "total"]
-                  },
-                  weakest_tip: { type: Type.STRING }
-                },
-                required: ["technical", "soft_skills", "domain", "weakest_tip"]
-              },
-              ats_compatibility: {
-                type: Type.OBJECT,
-                properties: {
-                  score: { type: Type.NUMBER },
-                  rating: { type: Type.STRING },
-                  issues: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["score", "rating", "issues"]
-              }
-            },
-            required: ["candidate_name", "score", "matched_keywords", "missing_keywords", "strengths", "suggestions", "summary", "section_feedback", "formatting", "skills_gap", "ats_compatibility"]
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text);
-      setAnalysisResult(result);
-      
-      if (result.formatting?.tips?.length === 0) {
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#10b981', '#34d399', '#6ee7b7', '#ffffff']
-        });
+      const apiKey = import.meta.env.VITE_NVIDIA_API_KEY;
+      if (!apiKey) {
+        throw new Error('NVIDIA API key is not configured. Please set VITE_NVIDIA_API_KEY in your .env file.');
       }
 
-      toast.success('Analysis complete!');
+      const prompt = `You are an expert ATS (Applicant Tracking System) and career coach AI. 
+Analyze the given resume against the job description.
 
-      // Save to Supabase
-      const client = getSupabase();
-      if (client && user) {
-        const { error: insertError } = await client.from('analyses').insert({
-          user_id: user.id,
-          resume_name: selectedFile.name,
-          score: result.score,
-          ats_compatibility: result.ats_compatibility?.score || 0
-        });
-        
-        if (insertError) {
-          console.error('Supabase insert error:', insertError);
-          if (insertError.code === 'PGRST205') {
-            console.warn('Schema cache mismatch. Please refresh your Supabase schema cache in the dashboard.');
+Return ONLY a valid JSON object with this exact structure:
+{
+  "candidate_name": "<name found in resume or 'Candidate'>",
+  "score": <number between 0-100>,
+  "matched_keywords": [<list of keywords found in both resume and JD>],
+  "missing_keywords": [<list of important keywords from JD missing in resume>],
+  "strengths": [<list of 3-5 strengths of the resume for this JD>],
+  "suggestions": [<list of 4-6 specific, actionable improvement suggestions>],
+  "summary": "<2-3 sentence professional, user-friendly summary of the match. Use the candidate's name naturally (proper case, not all caps) instead of 'the candidate' to keep the flow professional.>",
+  "section_feedback": {
+    "summary": { "score": <0-100>, "feedback": "string" },
+    "experience": { "score": <0-100>, "feedback": "string" },
+    "education": { "score": <0-100>, "feedback": "string" },
+    "skills": { "score": <0-100>, "feedback": "string" }
+  },
+  "formatting": {
+    "has_metrics": boolean,
+    "appropriate_length": boolean,
+    "uses_action_verbs": boolean,
+    "has_contact_info": boolean,
+    "tips": [<list of tips for failed checks>]
+  },
+  "skills_gap": {
+    "technical": {"matched": number, "total": number},
+    "soft_skills": {"matched": number, "total": number},
+    "domain": {"matched": number, "total": number},
+    "weakest_tip": "string"
+  },
+  "ats_compatibility": {
+    "score": number,
+    "rating": "string",
+    "issues": [<list of issues found>]
+  }
+}
+
+Resume: ${resumeText}
+Job Description: ${jobDescription}`;
+
+      const maxRetries = 3;
+      let lastError: any = null;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'meta/llama-3.3-70b-instruct',
+              messages: [
+                { role: 'user', content: prompt }
+              ],
+              temperature: 0.1,
+              max_tokens: 4096,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorBody = await response.text();
+            if (response.status === 429 && attempt < maxRetries - 1) {
+              const delay = Math.pow(2, attempt) * 1000;
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            throw new Error(`NVIDIA API error (${response.status}): ${errorBody}`);
           }
+
+          const data = await response.json();
+          const content = data.choices?.[0]?.message?.content || '';
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            throw new Error('No valid JSON found in AI response.');
+          }
+
+          const result = JSON.parse(jsonMatch[0]);
+          setAnalysisResult(result);
+          
+          if (result.formatting?.tips?.length === 0) {
+            confetti({
+              particleCount: 150,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ['#10b981', '#34d399', '#6ee7b7', '#ffffff']
+            });
+          }
+
+          toast.success('Analysis complete!');
+
+          // Save to Supabase
+          const client = getSupabase();
+          if (client && user) {
+            const { error: insertError } = await client.from('analyses').insert({
+              user_id: user.id,
+              resume_name: selectedFile.name,
+              score: result.score,
+              ats_compatibility: result.ats_compatibility?.score || 0
+            });
+            
+            if (insertError) {
+              console.error('Supabase insert error:', insertError);
+              if (insertError.code === 'PGRST205') {
+                console.warn('Schema cache mismatch. Please refresh your Supabase schema cache in the dashboard.');
+              }
+            }
+          }
+          return; // success — exit retry loop
+        } catch (fetchErr: any) {
+          lastError = fetchErr;
+          if (attempt === maxRetries - 1) throw fetchErr;
         }
       }
     } catch (err: any) {
