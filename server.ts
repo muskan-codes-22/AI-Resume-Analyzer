@@ -125,9 +125,9 @@ ${resumeText}
 Job Description:
 ${jobDescription}`;
 
-      // 30-second hard timeout via AbortController
+      // 60-second hard timeout via AbortController
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30_000);
+      const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
       let nvidiaRes: Response;
       try {
@@ -138,10 +138,10 @@ ${jobDescription}`;
             'Authorization': `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: 'meta/llama-3.3-70b-instruct',
+            model: 'meta/llama-3.1-8b-instruct',
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.1,
-            max_tokens: 4096,
+            temperature: 0.5,
+            max_tokens: 2048,
             stream: false,
           }),
           signal: controller.signal,
@@ -149,8 +149,8 @@ ${jobDescription}`;
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
         if (fetchErr.name === 'AbortError') {
-          console.error('NVIDIA API request timed out after 30s');
-          return res.status(504).json({ error: 'The AI request timed out after 30 seconds. Please try again.' });
+          console.error('NVIDIA API request timed out after 60s');
+          return res.status(504).json({ error: 'The AI request timed out after 60 seconds. Please try again — the server may be busy.' });
         }
         throw fetchErr;
       }
