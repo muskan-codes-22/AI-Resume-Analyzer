@@ -28,7 +28,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { getSupabase } from './lib/supabase';
-// NVIDIA NIM API used — no SDK import needed (native fetch)
+import { GoogleGenAI, Type } from "@google/genai";
 import toast, { Toaster } from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -47,6 +47,8 @@ import {
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+import { InsightsPage } from './components/InsightsPage';
 
 // --- Constants ---
 
@@ -83,7 +85,7 @@ const CountUp = ({ end, duration = 2000, suffix = "" }: { end: number, duration?
   return <span>{count}{suffix}</span>;
 };
 
-const Navbar = ({ onAuthClick, user, onHomeClick }: { onAuthClick: (mode: 'login' | 'signup') => void, user: any, onHomeClick: () => void }) => {
+const Navbar = ({ onAuthClick, user, onHomeClick, onInsightsClick }: { onAuthClick: (mode: 'login' | 'signup') => void, user: any, onHomeClick: () => void, onInsightsClick: () => void }) => {
   const [scrolled, setScrolled] = useState(false);
 
   const handleLogout = async () => {
@@ -112,7 +114,7 @@ const Navbar = ({ onAuthClick, user, onHomeClick }: { onAuthClick: (mode: 'login
         </div>
         
         <div className={`hidden md:flex items-center gap-8 text-base font-semibold transition-colors duration-500 ${scrolled ? 'text-gray-600' : 'text-white/80'}`}>
-          <a href="#" className="hover:text-primary transition-colors">Insights</a>
+          <button onClick={onInsightsClick} className="hover:text-primary transition-colors">Insights</button>
           <a href="#" className="hover:text-primary transition-colors">Blogs</a>
           <a href="#" className="hover:text-primary transition-colors">Contacts</a>
         </div>
@@ -444,6 +446,279 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+const InsightsDashboard = ({ result, onReset }: { result: any, onReset: () => void }) => {
+  const scoreColor = result.score >= 80 ? 'text-emerald-500' : result.score >= 60 ? 'text-amber-500' : 'text-rose-500';
+  const scoreBg = result.score >= 80 ? 'bg-emerald-500' : result.score >= 60 ? 'bg-amber-500' : 'bg-rose-500';
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8 pb-20"
+    >
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Sparkles className="text-primary w-8 h-8" />
+            Insights Dashboard
+          </h2>
+          <p className="text-gray-500 mt-1">Detailed analysis for {result.candidate_name}'s resume</p>
+        </div>
+        <button 
+          onClick={onReset}
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-all shadow-sm"
+        >
+          <PlusCircle className="w-5 h-5" /> Analyze Another
+        </button>
+      </div>
+
+      {/* Summary Card */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <FileText className="text-primary w-5 h-5" />
+          Executive Summary
+        </h3>
+        <p className="text-gray-600 leading-relaxed text-lg">{result.summary}</p>
+      </div>
+
+      {/* Top Row: Score & ATS */}
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Overall Score Gauge */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Target className="w-24 h-24 text-primary" />
+          </div>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-6">Overall Score</h3>
+          <div className="relative w-48 h-48 flex items-center justify-center">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle cx="96" cy="96" r="84" stroke="currentColor" strokeWidth="16" fill="transparent" className="text-gray-100" />
+              <motion.circle
+                cx="96" cy="96" r="84" stroke="currentColor" strokeWidth="16" fill="transparent"
+                strokeDasharray="527.78"
+                initial={{ strokeDashoffset: 527.78 }}
+                animate={{ strokeDashoffset: 527.78 - (527.78 * result.score) / 100 }}
+                transition={{ duration: 2, ease: "easeOut" }}
+                className={scoreColor}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-5xl font-black text-gray-900">{result.score}</span>
+              <span className="text-xs text-gray-400 font-bold uppercase">out of 100</span>
+            </div>
+          </div>
+          <div className={`mt-6 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${scoreBg} text-white shadow-lg`}>
+            {result.score >= 80 ? 'Excellent' : result.score >= 60 ? 'Good' : 'Needs Work'}
+          </div>
+        </div>
+
+        {/* ATS Compatibility */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Layout className="text-indigo-500 w-6 h-6" />
+              ATS Compatibility
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-black text-gray-900">{result.ats_compatibility.score}%</span>
+              <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                result.ats_compatibility.score >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}>
+                {result.ats_compatibility.rating}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Formatting Checks</p>
+              <div className="grid gap-3">
+                {[
+                  { label: 'Measurable Achievements', value: result.formatting.has_metrics },
+                  { label: 'Appropriate Length', value: result.formatting.appropriate_length },
+                  { label: 'Action Verbs', value: result.formatting.uses_action_verbs },
+                  { label: 'Contact Info', value: result.formatting.has_contact_info }
+                ].map((check, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <span className="text-sm font-medium text-gray-700">{check.label}</span>
+                    {check.value ? (
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-rose-500" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Detected Issues</p>
+              <div className="flex flex-wrap gap-2">
+                {result.ats_compatibility.issues.length > 0 ? (
+                  result.ats_compatibility.issues.map((issue: string, i: number) => (
+                    <div key={i} className="px-4 py-2 rounded-xl bg-rose-50 text-rose-600 text-sm font-medium border border-rose-100 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      {issue}
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-full p-6 rounded-2xl bg-emerald-50 border border-emerald-100 flex flex-col items-center text-center gap-2">
+                    <CheckCircle className="w-8 h-8 text-emerald-500" />
+                    <p className="text-sm font-bold text-emerald-700">No ATS issues detected!</p>
+                    <p className="text-xs text-emerald-600/70">Your resume is highly readable by ATS systems.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Skills & Keywords */}
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Skill Analysis */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-8 flex items-center gap-2">
+            <BarChart3 className="text-primary w-6 h-6" />
+            Skill Analysis
+          </h3>
+          <div className="space-y-8">
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: 'Technical', data: result.skills_gap.technical, color: 'bg-primary' },
+                { label: 'Soft', data: result.skills_gap.soft_skills, color: 'bg-emerald-500' },
+                { label: 'Domain', data: result.skills_gap.domain, color: 'bg-amber-500' }
+              ].map((cat, i) => (
+                <div key={i} className="text-center space-y-2">
+                  <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
+                      <motion.circle
+                        cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent"
+                        strokeDasharray="213.63"
+                        initial={{ strokeDashoffset: 213.63 }}
+                        animate={{ strokeDashoffset: 213.63 - (213.63 * cat.data.matched) / cat.data.total }}
+                        transition={{ duration: 1.5, delay: 0.5 }}
+                        className={cat.color.replace('bg-', 'text-')}
+                      />
+                    </svg>
+                    <span className="absolute text-sm font-bold text-gray-900">{Math.round((cat.data.matched / cat.data.total) * 100)}%</span>
+                  </div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{cat.label}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10">
+              <h4 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
+                <Lightbulb className="w-4 h-4" />
+                Skill Improvement Tip
+              </h4>
+              <p className="text-sm text-gray-700 leading-relaxed italic">
+                "{result.skills_gap.weakest_tip}"
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Keyword Optimization */}
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-8 flex items-center gap-2">
+            <Zap className="text-amber-500 w-6 h-6" />
+            Keyword Optimization
+          </h3>
+          <div className="space-y-6">
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Found in Resume</p>
+              <div className="flex flex-wrap gap-2">
+                {result.matched_keywords.map((kw: string, i: number) => (
+                  <span key={i} className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-bold border border-emerald-100">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Missing from Resume</p>
+              <div className="flex flex-wrap gap-2">
+                {result.missing_keywords.map((kw: string, i: number) => (
+                  <span key={i} className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-xs font-bold border border-rose-100">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Section Feedback */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-900 mb-8 flex items-center gap-2">
+          <FileText className="text-indigo-500 w-6 h-6" />
+          Section Feedback
+        </h3>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Object.entries(result.section_feedback).map(([key, data]: [string, any], i) => (
+            <div key={i} className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-gray-900 capitalize">{key}</span>
+                <span className={`text-sm font-black ${
+                  data.score >= 80 ? 'text-emerald-500' : data.score >= 60 ? 'text-amber-500' : 'text-rose-500'
+                }`}>{data.score}%</span>
+              </div>
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${data.score}%` }}
+                  transition={{ duration: 1, delay: i * 0.1 }}
+                  className={`h-full ${
+                    data.score >= 80 ? 'bg-emerald-500' : data.score >= 60 ? 'bg-amber-500' : 'bg-rose-500'
+                  }`}
+                />
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">{data.feedback}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Strengths & Suggestions */}
+      <div className="grid lg:grid-cols-2 gap-8">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <CheckCircle className="text-emerald-500 w-6 h-6" />
+            Strengths
+          </h3>
+          <ul className="space-y-4">
+            {result.strengths.map((s: string, i: number) => (
+              <li key={i} className="flex gap-4 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100/50 text-gray-700 text-sm">
+                <Check className="w-5 h-5 text-emerald-500 shrink-0" />
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <Lightbulb className="text-amber-500 w-6 h-6" />
+            Actionable Suggestions
+          </h3>
+          <div className="space-y-4">
+            {result.suggestions.map((s: string, i: number) => (
+              <div key={i} className="flex gap-4 p-4 rounded-2xl bg-amber-50/30 border border-amber-100/30 text-gray-700 text-sm">
+                <span className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0">
+                  {i + 1}
+                </span>
+                {s}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const Dashboard = ({ user }: { user: any }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -572,66 +847,160 @@ const Dashboard = ({ user }: { user: any }) => {
         throw new Error('Could not extract text from the file. It might be empty or scanned.');
       }
 
-      const BACKOFF_DELAYS_MS = [2000, 4000, 8000]; // exponential backoff: 2s → 4s → 8s
-      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-      const isQuotaError = (status: number) => status === 429;
-      const isTimeoutError = (status: number) => status === 504;
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Analyze the following resume against the job description. 
+        
+        System Prompt:
+        You are an expert ATS (Applicant Tracking System) and career coach AI. 
+        Analyze the given resume against the job description.
 
-      let rawText = '';
-      let lastError: any = null;
-
-      for (let attempt = 0; attempt <= BACKOFF_DELAYS_MS.length; attempt++) {
-        const attemptLabel = attempt === 0
-          ? 'Analyzing your resume...'
-          : `AI is busy, retrying... (attempt ${attempt + 1})`;
-        toast.loading(attemptLabel, { id: 'model-attempt' });
-
-        try {
-          const res = await fetch('/api/analyze-resume', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resumeText, jobDescription }),
-          });
-
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({ error: res.statusText }));
-            lastError = { status: res.status, message: errBody?.error || res.statusText };
-
-            if (isTimeoutError(res.status)) {
-              throw new Error('The AI request timed out after 30 seconds. Please try again — the server may be busy.');
-            }
-            if (isQuotaError(res.status) && attempt < BACKOFF_DELAYS_MS.length) {
-              const waitSec = BACKOFF_DELAYS_MS[attempt] / 1000;
-              toast.loading(`AI is busy, retrying in ${waitSec}s...`, { id: 'model-attempt' });
-              console.warn(`Quota hit on attempt ${attempt + 1}, waiting ${waitSec}s...`);
-              await sleep(BACKOFF_DELAYS_MS[attempt]);
-              continue;
-            }
-            throw new Error(`Analysis failed (${res.status}): ${lastError.message}`);
-          }
-
-          const data = await res.json();
-          rawText = data?.rawText ?? '';
-          toast.dismiss('model-attempt');
-          break; // success
-        } catch (fetchErr: any) {
-          lastError = fetchErr;
-          if (!isQuotaError(fetchErr?.status)) {
-            toast.dismiss('model-attempt');
-            throw fetchErr;
+        Return ONLY a valid JSON object with this exact structure:
+        {
+          "candidate_name": "<name found in resume or 'Candidate'>",
+          "score": <number between 0-100>,
+          "matched_keywords": [<list of keywords found in both resume and JD>],
+          "missing_keywords": [<list of important keywords from JD missing in resume>],
+          "strengths": [<list of 3-5 strengths of the resume for this JD>],
+          "suggestions": [<list of 4-6 specific, actionable improvement suggestions>],
+          "summary": "<2-3 sentence professional, user-friendly summary of the match. Use the candidate's name naturally (proper case, not all caps) instead of 'the candidate' to keep the flow professional.>",
+          "section_feedback": {
+            "summary": { "score": <0-100>, "feedback": "string" },
+            "experience": { "score": <0-100>, "feedback": "string" },
+            "education": { "score": <0-100>, "feedback": "string" },
+            "skills": { "score": <0-100>, "feedback": "string" }
+          },
+          "formatting": {
+            "has_metrics": boolean,
+            "appropriate_length": boolean,
+            "uses_action_verbs": boolean,
+            "has_contact_info": boolean,
+            "tips": [<list of tips for failed checks>]
+          },
+          "skills_gap": {
+            "technical": {"matched": number, "total": number},
+            "soft_skills": {"matched": number, "total": number},
+            "domain": {"matched": number, "total": number},
+            "weakest_tip": "string"
+          },
+          "ats_compatibility": {
+            "score": number,
+            "rating": "string",
+            "issues": [<list of issues found>]
           }
         }
-      }
+        
+        Resume: ${resumeText}
+        Job Description: ${jobDescription}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              candidate_name: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              matched_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              missing_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+              suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+              summary: { type: Type.STRING },
+              section_feedback: {
+                type: Type.OBJECT,
+                properties: {
+                  summary: {
+                    type: Type.OBJECT,
+                    properties: {
+                      score: { type: Type.NUMBER },
+                      feedback: { type: Type.STRING }
+                    },
+                    required: ["score", "feedback"]
+                  },
+                  experience: {
+                    type: Type.OBJECT,
+                    properties: {
+                      score: { type: Type.NUMBER },
+                      feedback: { type: Type.STRING }
+                    },
+                    required: ["score", "feedback"]
+                  },
+                  education: {
+                    type: Type.OBJECT,
+                    properties: {
+                      score: { type: Type.NUMBER },
+                      feedback: { type: Type.STRING }
+                    },
+                    required: ["score", "feedback"]
+                  },
+                  skills: {
+                    type: Type.OBJECT,
+                    properties: {
+                      score: { type: Type.NUMBER },
+                      feedback: { type: Type.STRING }
+                    },
+                    required: ["score", "feedback"]
+                  }
+                },
+                required: ["summary", "experience", "education", "skills"]
+              },
+              formatting: {
+                type: Type.OBJECT,
+                properties: {
+                  has_metrics: { type: Type.BOOLEAN },
+                  appropriate_length: { type: Type.BOOLEAN },
+                  uses_action_verbs: { type: Type.BOOLEAN },
+                  has_contact_info: { type: Type.BOOLEAN },
+                  tips: { type: Type.ARRAY, items: { type: Type.STRING } }
+                },
+                required: ["has_metrics", "appropriate_length", "uses_action_verbs", "has_contact_info", "tips"]
+              },
+              skills_gap: {
+                type: Type.OBJECT,
+                properties: {
+                  technical: {
+                    type: Type.OBJECT,
+                    properties: {
+                      matched: { type: Type.NUMBER },
+                      total: { type: Type.NUMBER }
+                    },
+                    required: ["matched", "total"]
+                  },
+                  soft_skills: {
+                    type: Type.OBJECT,
+                    properties: {
+                      matched: { type: Type.NUMBER },
+                      total: { type: Type.NUMBER }
+                    },
+                    required: ["matched", "total"]
+                  },
+                  domain: {
+                    type: Type.OBJECT,
+                    properties: {
+                      matched: { type: Type.NUMBER },
+                      total: { type: Type.NUMBER }
+                    },
+                    required: ["matched", "total"]
+                  },
+                  weakest_tip: { type: Type.STRING }
+                },
+                required: ["technical", "soft_skills", "domain", "weakest_tip"]
+              },
+              ats_compatibility: {
+                type: Type.OBJECT,
+                properties: {
+                  score: { type: Type.NUMBER },
+                  rating: { type: Type.STRING },
+                  issues: { type: Type.ARRAY, items: { type: Type.STRING } }
+                },
+                required: ["score", "rating", "issues"]
+              }
+            },
+            required: ["candidate_name", "score", "matched_keywords", "missing_keywords", "strengths", "suggestions", "summary", "section_feedback", "formatting", "skills_gap", "ats_compatibility"]
+          }
+        }
+      });
 
-      toast.dismiss('model-attempt');
-
-      if (!rawText) {
-        throw new Error(`The AI is currently overloaded and all retry attempts were exhausted. Please wait a minute and try again.\n\nDetails: ${lastError?.message ?? String(lastError)}`);
-      }
-
-      // Strip markdown code fences if the model wraps the JSON anyway
-      const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      const result = JSON.parse(jsonText);
+      const result = JSON.parse(response.text);
       setAnalysisResult(result);
       
       if (result.formatting?.tips?.length === 0) {
@@ -736,327 +1105,14 @@ const Dashboard = ({ user }: { user: any }) => {
           <div className="space-y-8">
             <AnimatePresence mode="wait">
               {analysisResult ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-8"
-                >
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-gray-900">Analysis Results</h2>
-                    <button 
-                      onClick={() => {
-                        setAnalysisResult(null);
-                        setSelectedFile(null);
-                        setJobDescription('');
-                      }}
-                      className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-primary transition-colors"
-                    >
-                      <PlusCircle className="w-4 h-4" /> Analyze Another
-                    </button>
-                  </div>
-
-                  {/* Summary Section */}
-                  <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">Overall Summary</h3>
-                    <p className="text-gray-600 leading-relaxed">{analysisResult.summary}</p>
-                  </div>
-
-                  <div className="grid lg:grid-cols-3 gap-6">
-                    {/* Score Circle */}
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center">
-                      <div className="relative w-40 h-40 flex items-center justify-center mb-4">
-                        <svg className="w-full h-full transform -rotate-90">
-                          <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
-                          <motion.circle
-                            cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent"
-                            strokeDasharray="439.8"
-                            initial={{ strokeDashoffset: 439.8 }}
-                            animate={{ strokeDashoffset: 439.8 - (439.8 * analysisResult.score) / 100 }}
-                            transition={{ duration: 1.5, ease: "easeOut" }}
-                            className={
-                              analysisResult.score > 70 ? 'text-emerald-500' : 
-                              analysisResult.score > 40 ? 'text-amber-500' : 'text-rose-500'
-                            }
-                          />
-                        </svg>
-                        <div className="absolute flex flex-col items-center">
-                          <span className="text-4xl font-bold text-gray-900">{analysisResult.score}</span>
-                          <span className="text-xs text-gray-400 font-bold uppercase">Score</span>
-                        </div>
-                      </div>
-                      <p className={`font-bold ${
-                        analysisResult.score > 70 ? 'text-emerald-600' : 
-                        analysisResult.score > 40 ? 'text-amber-600' : 'text-rose-600'
-                      }`}>
-                        {analysisResult.score > 70 ? 'Strong Match' : 
-                         analysisResult.score > 40 ? 'Moderate Match' : 'Weak Match'}
-                      </p>
-                    </div>
-
-                    {/* Keywords Section */}
-                    <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
-                      <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                        <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <CheckCircle className="text-emerald-500 w-5 h-5" />
-                          Matched Keywords
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {analysisResult.matched_keywords.length > 0 ? (
-                            analysisResult.matched_keywords.map((keyword: string, i: number) => (
-                              <span key={i} className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-sm font-bold border border-emerald-100">
-                                {keyword}
-                              </span>
-                            ))
-                          ) : (
-                            <p className="text-xs text-gray-400 italic">No direct keyword matches found.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                        <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                          <AlertTriangle className="text-rose-500 w-5 h-5" />
-                          Missing Keywords
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {analysisResult.missing_keywords.length > 0 ? (
-                            analysisResult.missing_keywords.map((keyword: string, i: number) => (
-                              <span key={i} className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-sm font-bold border border-rose-100">
-                                {keyword}
-                              </span>
-                            ))
-                          ) : (
-                            <p className="text-xs text-gray-400 italic">No major keywords missing.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {/* Strengths */}
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                      <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Target className="text-primary w-5 h-5" />
-                        Key Strengths
-                      </h3>
-                      <ul className="space-y-4">
-                        {analysisResult.strengths.map((strength: string, i: number) => (
-                          <li key={i} className="flex gap-3 text-gray-600 text-base">
-                            <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                            {strength}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Suggestions */}
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                      <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Lightbulb className="text-amber-500 w-5 h-5" />
-                        Improvement Suggestions
-                      </h3>
-                      <div className="space-y-4">
-                        {analysisResult.suggestions.map((suggestion: string, i: number) => (
-                          <div key={i} className="flex gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                            <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold text-primary shadow-sm shrink-0">
-                              {i + 1}
-                            </span>
-                            <p className="text-gray-600 text-base">{suggestion}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* FEATURE 1 — Resume Formatting Check */}
-                  {analysisResult.formatting && (
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                      <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Layout className="text-indigo-500 w-5 h-5" />
-                        Formatting Analysis
-                      </h3>
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          {[
-                            { label: 'Measurable Achievements', value: analysisResult.formatting.has_metrics },
-                            { label: 'Appropriate Length', value: analysisResult.formatting.appropriate_length },
-                            { label: 'Action Verbs Used', value: analysisResult.formatting.uses_action_verbs },
-                            { label: 'Contact Details Present', value: analysisResult.formatting.has_contact_info }
-                          ].map((check, i) => (
-                            <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                              <span className="text-sm font-medium text-gray-700">{check.label}</span>
-                              {check.value ? (
-                                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                              ) : (
-                                <X className="w-5 h-5 text-rose-500" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {analysisResult.formatting.tips.length > 0 ? (
-                          <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100">
-                            <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                              <Lightbulb className="w-4 h-4" />
-                              Formatting Tips
-                            </h4>
-                            <ul className="space-y-2">
-                              {analysisResult.formatting.tips.map((tip: string, i: number) => (
-                                <li key={i} className="text-xs text-indigo-700 flex gap-2">
-                                  <span className="shrink-0">•</span>
-                                  {tip}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-green-50 border border-green-200 p-8 rounded-3xl flex flex-col items-center justify-center text-center relative overflow-hidden"
-                          >
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-green-400/10 blur-3xl rounded-full -z-0" />
-                            
-                            <div className="relative z-10 flex flex-col items-center">
-                              <svg className="w-16 h-16 text-green-500" viewBox="0 0 52 52">
-                                <motion.circle
-                                  cx="26" cy="26" r="25"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  initial={{ pathLength: 0 }}
-                                  animate={{ pathLength: 1 }}
-                                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                                />
-                                <motion.path
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M14.1 27.2l7.1 7.2 16.7-16.8"
-                                  initial={{ pathLength: 0 }}
-                                  animate={{ pathLength: 1 }}
-                                  transition={{ duration: 0.5, delay: 0.8, ease: "easeInOut" }}
-                                />
-                              </svg>
-
-                              <h4 className="text-xl font-bold text-green-600 mt-4">Perfect Formatting!</h4>
-                              <p className="text-xs text-gray-500 mt-2 max-w-[220px] leading-relaxed">
-                                Your resume formatting is excellent! You're ahead of 85% of applicants.
-                              </p>
-
-                              <motion.div
-                                initial={{ scale: 0, rotate: -20 }}
-                                animate={{ scale: 1, rotate: 0 }}
-                                transition={{ 
-                                  type: "spring", 
-                                  stiffness: 260, 
-                                  damping: 20, 
-                                  delay: 1.3 
-                                }}
-                                className="text-3xl mt-4"
-                              >
-                                ✨
-                              </motion.div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* FEATURE 2 — Experience & Skills Gap Analysis */}
-                  {analysisResult.skills_gap && (
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                      <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <BarChart3 className="text-primary w-5 h-5" />
-                        Skills Gap Analysis
-                      </h3>
-                      <div className="grid md:grid-cols-3 gap-6">
-                        {[
-                          { label: 'Technical Skills', data: analysisResult.skills_gap.technical, color: 'bg-primary' },
-                          { label: 'Soft Skills', data: analysisResult.skills_gap.soft_skills, color: 'bg-emerald-500' },
-                          { label: 'Domain Knowledge', data: analysisResult.skills_gap.domain, color: 'bg-amber-500' }
-                        ].map((cat, i) => (
-                          <div key={i} className="space-y-3">
-                            <div className="flex justify-between items-end">
-                              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{cat.label}</span>
-                              <span className="text-xs font-bold text-gray-900">{cat.data.matched}/{cat.data.total}</span>
-                            </div>
-                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(cat.data.matched / cat.data.total) * 100}%` }}
-                                transition={{ duration: 1, delay: 0.5 }}
-                                className={`h-full ${cat.color}`}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-6 p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                        <p className="text-sm text-primary font-medium flex gap-2">
-                          <Zap className="w-4 h-4 shrink-0" />
-                          <span className="font-bold">Pro Tip:</span> {analysisResult.skills_gap.weakest_tip}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* FEATURE 3 — ATS Compatibility Score */}
-                  {analysisResult.ats_compatibility && (
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-6">
-                          <div className="relative w-24 h-24 flex items-center justify-center">
-                            <svg className="w-full h-full transform -rotate-90">
-                              <circle cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
-                              <motion.circle
-                                cx="48" cy="48" r="42" stroke="currentColor" strokeWidth="8" fill="transparent"
-                                strokeDasharray="263.89"
-                                initial={{ strokeDashoffset: 263.89 }}
-                                animate={{ strokeDashoffset: 263.89 - (263.89 * analysisResult.ats_compatibility.score) / 100 }}
-                                transition={{ duration: 1.5, ease: "easeOut" }}
-                                className={
-                                  analysisResult.ats_compatibility.score >= 90 ? 'text-emerald-500' : 
-                                  analysisResult.ats_compatibility.score >= 70 ? 'text-amber-500' : 'text-rose-500'
-                                }
-                              />
-                            </svg>
-                            <span className="absolute text-xl font-bold text-gray-900">{analysisResult.ats_compatibility.score}%</span>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-1">ATS Compatibility</h3>
-                            <div className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              analysisResult.ats_compatibility.score >= 90 ? 'bg-emerald-100 text-emerald-700' : 
-                              analysisResult.ats_compatibility.score >= 70 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
-                            }`}>
-                              {analysisResult.ats_compatibility.rating}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex-1 max-w-md">
-                          <h4 className="text-sm font-bold text-gray-900 mb-2">Compatibility Issues</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {analysisResult.ats_compatibility.issues.length > 0 ? (
-                              analysisResult.ats_compatibility.issues.map((issue: string, i: number) => (
-                                <span key={i} className="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-500 text-sm font-medium border border-gray-100">
-                                  {issue}
-                                </span>
-                              ))
-                            ) : (
-                              <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                                <CheckCircle className="w-3 h-3" /> No compatibility issues found!
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
+                <InsightsDashboard 
+                  result={analysisResult} 
+                  onReset={() => {
+                    setAnalysisResult(null);
+                    setSelectedFile(null);
+                    setJobDescription('');
+                  }} 
+                />
               ) : (
                 <div className="grid lg:grid-cols-2 gap-8">
                   <div className="space-y-8">
@@ -1466,7 +1522,7 @@ const Dashboard = ({ user }: { user: any }) => {
 };
 
 function App() {
-  const [view, setView] = useState<'home' | 'login' | 'signup'>('home');
+  const [view, setView] = useState<'home' | 'login' | 'signup' | 'insights'>('home');
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -1510,9 +1566,18 @@ function App() {
     return <AuthPage mode={view} onModeChange={setView} onBack={() => setView('home')} />;
   }
 
+  if (view === 'insights') {
+    return <InsightsPage onBack={() => setView('home')} />;
+  }
+
   return (
     <div className="min-h-screen bg-dark-bg selection:bg-primary/30 selection:text-white overflow-x-hidden">
-      <Navbar onAuthClick={setView} user={user} onHomeClick={() => setView('home')} />
+      <Navbar 
+        onAuthClick={setView} 
+        user={user} 
+        onHomeClick={() => setView('home')} 
+        onInsightsClick={() => setView('insights')}
+      />
       
       {/* Hero Section */}
       <section className="relative pt-40 pb-32 px-6">
