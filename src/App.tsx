@@ -847,125 +847,94 @@ const Dashboard = ({ user }: { user: any }) => {
         throw new Error('Could not extract text from the file. It might be empty or scanned.');
       }
 
-      const apiKey = import.meta.env.VITE_NVIDIA_API_KEY;
-      if (!apiKey) {
-        throw new Error('NVIDIA API key is not configured. Please set VITE_NVIDIA_API_KEY in your .env file.');
-      }
+      const BACKOFF_DELAYS_MS = [2000, 4000, 8000]; // exponential backoff: 2s → 4s → 8s
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      const isQuotaError = (status: number) => status === 429;
+      const isTimeoutError = (status: number) => status === 504;
 
-      const prompt = `You are an expert ATS (Applicant Tracking System) and career coach AI. 
-Analyze the given resume against the job description.
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "candidate_name": "<name found in resume or 'Candidate'>",
-  "score": <number between 0-100>,
-  "matched_keywords": [<list of keywords found in both resume and JD>],
-  "missing_keywords": [<list of important keywords from JD missing in resume>],
-  "strengths": [<list of 3-5 strengths of the resume for this JD>],
-  "suggestions": [<list of 4-6 specific, actionable improvement suggestions>],
-  "summary": "<2-3 sentence professional, user-friendly summary of the match. Use the candidate's name naturally (proper case, not all caps) instead of 'the candidate' to keep the flow professional.>",
-  "section_feedback": {
-    "summary": { "score": <0-100>, "feedback": "string" },
-    "experience": { "score": <0-100>, "feedback": "string" },
-    "education": { "score": <0-100>, "feedback": "string" },
-    "skills": { "score": <0-100>, "feedback": "string" }
-  },
-  "formatting": {
-    "has_metrics": boolean,
-    "appropriate_length": boolean,
-    "uses_action_verbs": boolean,
-    "has_contact_info": boolean,
-    "tips": [<list of tips for failed checks>]
-  },
-  "skills_gap": {
-    "technical": {"matched": number, "total": number},
-    "soft_skills": {"matched": number, "total": number},
-    "domain": {"matched": number, "total": number},
-    "weakest_tip": "string"
-  },
-  "ats_compatibility": {
-    "score": number,
-    "rating": "string",
-    "issues": [<list of issues found>]
-  }
-}
-
-Resume: ${resumeText}
-Job Description: ${jobDescription}`;
-
-      const maxRetries = 3;
+      let rawText = '';
       let lastError: any = null;
 
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
+      for (let attempt = 0; attempt <= BACKOFF_DELAYS_MS.length; attempt++) {
+        const attemptLabel = attempt === 0
+          ? 'Analyzing your resume...'
+          : `AI is busy, retrying... (attempt ${attempt + 1})`;
+        toast.loading(attemptLabel, { id: 'model-attempt' });
+
         try {
-          const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+          const res = await fetch('/api/analyze-resume', {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'meta/llama-3.3-70b-instruct',
-              messages: [
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.1,
-              max_tokens: 4096,
-            }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeText, jobDescription }),
           });
 
-          if (!response.ok) {
-            const errorBody = await response.text();
-            if (response.status === 429 && attempt < maxRetries - 1) {
-              const delay = Math.pow(2, attempt) * 1000;
-              await new Promise(resolve => setTimeout(resolve, delay));
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({ error: res.statusText }));
+            lastError = { status: res.status, message: errBody?.error || res.statusText };
+
+            if (isTimeoutError(res.status)) {
+              throw new Error('The AI request timed out after 30 seconds. Please try again — the server may be busy.');
+            }
+            if (isQuotaError(res.status) && attempt < BACKOFF_DELAYS_MS.length) {
+              const waitSec = BACKOFF_DELAYS_MS[attempt] / 1000;
+              toast.loading(`AI is busy, retrying in ${waitSec}s...`, { id: 'model-attempt' });
+              console.warn(`Quota hit on attempt ${attempt + 1}, waiting ${waitSec}s...`);
+              await sleep(BACKOFF_DELAYS_MS[attempt]);
               continue;
             }
-            throw new Error(`NVIDIA API error (${response.status}): ${errorBody}`);
+            throw new Error(`Analysis failed (${res.status}): ${lastError.message}`);
           }
 
-          const data = await response.json();
-          const content = data.choices?.[0]?.message?.content || '';
-          const jsonMatch = content.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            throw new Error('No valid JSON found in AI response.');
-          }
-
-          const result = JSON.parse(jsonMatch[0]);
-          setAnalysisResult(result);
-          
-          if (result.formatting?.tips?.length === 0) {
-            confetti({
-              particleCount: 150,
-              spread: 70,
-              origin: { y: 0.6 },
-              colors: ['#10b981', '#34d399', '#6ee7b7', '#ffffff']
-            });
-          }
-
-          toast.success('Analysis complete!');
-
-          // Save to Supabase
-          const client = getSupabase();
-          if (client && user) {
-            const { error: insertError } = await client.from('analyses').insert({
-              user_id: user.id,
-              resume_name: selectedFile.name,
-              score: result.score,
-              ats_compatibility: result.ats_compatibility?.score || 0
-            });
-            
-            if (insertError) {
-              console.error('Supabase insert error:', insertError);
-              if (insertError.code === 'PGRST205') {
-                console.warn('Schema cache mismatch. Please refresh your Supabase schema cache in the dashboard.');
-              }
-            }
-          }
-          return; // success — exit retry loop
+          const data = await res.json();
+          rawText = data?.rawText ?? '';
+          toast.dismiss('model-attempt');
+          break; // success
         } catch (fetchErr: any) {
           lastError = fetchErr;
-          if (attempt === maxRetries - 1) throw fetchErr;
+          if (!isQuotaError(fetchErr?.status)) {
+            toast.dismiss('model-attempt');
+            throw fetchErr;
+          }
+        }
+      }
+
+      toast.dismiss('model-attempt');
+
+      if (!rawText) {
+        throw new Error(`The AI is currently overloaded and all retry attempts were exhausted. Please wait a minute and try again.\n\nDetails: ${lastError?.message ?? String(lastError)}`);
+      }
+
+      // Strip markdown code fences if the model wraps the JSON anyway
+      const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const result = JSON.parse(jsonText);
+      setAnalysisResult(result);
+      
+      if (result.formatting?.tips?.length === 0) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10b981', '#34d399', '#6ee7b7', '#ffffff']
+        });
+      }
+
+      toast.success('Analysis complete!');
+
+      // Save to Supabase
+      const client = getSupabase();
+      if (client && user) {
+        const { error: insertError } = await client.from('analyses').insert({
+          user_id: user.id,
+          resume_name: selectedFile.name,
+          score: result.score,
+          ats_compatibility: result.ats_compatibility?.score || 0
+        });
+        
+        if (insertError) {
+          console.error('Supabase insert error:', insertError);
+          if (insertError.code === 'PGRST205') {
+            console.warn('Schema cache mismatch. Please refresh your Supabase schema cache in the dashboard.');
+          }
         }
       }
     } catch (err: any) {
