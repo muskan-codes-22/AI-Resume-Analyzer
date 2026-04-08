@@ -105,8 +105,8 @@ const Navbar = ({ onAuthClick, user, onHomeClick, onInsightsClick }: { onAuthCli
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'glass-light py-2' : 'bg-transparent py-4'}`}>
       <div className="w-full px-8 flex justify-between items-center">
         <div className="flex items-center gap-2 cursor-pointer" onClick={onHomeClick}>
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center glow-indigo">
-            <Target className="text-white w-7 h-7" />
+          <div className="w-12 h-12 flex items-center justify-center">
+            <img src="/logo.png" alt="HireMatch Logo" className="w-full h-full object-contain" />
           </div>
           <span className={`text-4xl font-extrabold tracking-tight font-display ${scrolled ? 'text-gray-900' : 'text-white'}`}>
             HireMatch
@@ -965,8 +965,8 @@ const Dashboard = ({ user }: { user: any }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col p-6 fixed h-full">
         <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center glow-indigo">
-            <Target className="text-white w-6 h-6" />
+          <div className="w-10 h-10 flex items-center justify-center">
+            <img src="/logo.png" alt="HireMatch Logo" className="w-full h-full object-contain" />
           </div>
           <span className="text-2xl font-extrabold tracking-tight font-display text-primary">
             HireMatch
@@ -1724,8 +1724,8 @@ function App() {
       <footer className="py-20 px-6 bg-dark-bg border-t border-white/5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <Target className="text-white w-6 h-6" />
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img src="/logo.png" alt="HireMatch Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-3xl font-extrabold tracking-tight font-display text-white">
               HireMatch
