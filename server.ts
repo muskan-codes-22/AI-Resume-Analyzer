@@ -84,15 +84,17 @@ async function startServer() {
       const prompt = `You are an expert ATS (Applicant Tracking System) and career coach AI.
 Analyze the given resume against the job description.
 
-CRITICAL SCORING INSTRUCTIONS:
-- You must calculate a REALISTIC and STRICT score between 0-100 based on the actual content match.
-- Do NOT just default to 85. Vary the score deeply based on the resume's true quality.
-- Scoring Rubric:
-  - 0-49: Poor match. Unrelated experience or missing many key skills.
-  - 50-64: Average match. Has some relevant background but missing core requirements.
-  - 65-79: Good match. Meets most requirements, standard experience.
-  - 80-95: Excellent match. Highly tailored, strong metrics, hits almost all keywords.
-- Both the main "score" and the "ats_compatibility.score" must follow this strict grading logic.
+CRITICAL SCORING INSTRUCTIONS (MUST BE DETERMINISTIC):
+- You must calculate a FIXED, rule-based score between 0-100. Do NOT output random scores. For the exact same resume and JD, you must ALWAYS output the exact same score.
+- **PENALIZE HEAVILY (-50 to -80 points)** if the resume is from a completely different field/domain than the job description.
+- STRICT Scoring Rubric based on Keyword/Skill Match Percentage:
+  - 0% - 10% match: Score strictly between 5-15
+  - 11% - 30% match: Score strictly between 20-35
+  - 31% - 50% match: Score strictly between 40-55
+  - 51% - 75% match: Score strictly between 60-75
+  - 76% - 100% match: Score strictly between 80-95
+- Add exactly +5 bonus points if strong quantifiable metrics (numbers/percentages) are well-utilized.
+- Both the main "score" and the "ats_compatibility.score" must be the identical calculated value.
 
 Return ONLY a valid JSON object with NO markdown, NO code fences, and NO extra text. Just raw JSON:
 {
@@ -150,7 +152,9 @@ ${jobDescription}`;
           body: JSON.stringify({
             model: 'meta/llama-3.1-8b-instruct',
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.5,
+            temperature: 0.1,
+            top_p: 0.1,
+            seed: 42,
             max_tokens: 2048,
             stream: false,
           }),

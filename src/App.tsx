@@ -1335,20 +1335,51 @@ const Dashboard = ({ user }: { user: any }) => {
 
       // Save to Supabase
       const client = getSupabase();
-      if (client && user) {
-        const { error: insertError } = await client.from('analyses').insert({
-          user_id: user.id,
-          resume_name: selectedFile.name,
-          score: result.score,
-          ats_compatibility: result.ats_compatibility?.score || 0,
-          result_data: result
-        });
-        
-        if (insertError) {
-          console.error('Supabase insert error:', insertError);
-          if (insertError.code === 'PGRST205') {
-            console.warn('Schema cache mismatch. Please refresh your Supabase schema cache in the dashboard.');
+      console.log('Preparing to save data to Supabase...', { clientFound: !!client });
+      
+      let currentUser = user;
+      if (client) {
+        const { data: authData } = await client.auth.getUser();
+        if (authData?.user) {
+          currentUser = authData.user;
+        }
+      }
+      
+      console.log('Live CurrentUser:', currentUser);
+      console.log('Full AI Analysis Result Object:', JSON.parse(JSON.stringify(result)));
+      
+      if (!currentUser) {
+        console.error('Save skipped: User is not authenticated.');
+      } else if (!client) {
+        console.error('Save skipped: Supabase client is not available.');
+      } else {
+        console.log('Executing insert statement on analyses table...');
+        try {
+          const insertPayload: any = {
+            user_id: currentUser.id,
+            resume_name: selectedFile.name,
+            score: result.score,
+            ats_compatibility: result.ats_compatibility?.score || 0
+          };
+          
+          console.log('Insert Payload (Safe Mapping):', insertPayload);
+
+          const { data: insertData, error: insertError } = await client.from('analyses').insert(insertPayload).select();
+          
+          console.log('Insert Request Completed. Error:', insertError, 'Data:', insertData);
+          
+          if (insertError) {
+            console.error('Supabase insert exact error:', insertError.message, insertError.details, insertError.hint);
+            toast.error(`Database Error: ${insertError.message}`);
+          } else if (!insertData || insertData.length === 0) {
+            console.error('RLS BLOCKED: Row Level Security policies prevented this insert from succeeding.');
+            toast.error('Row Level Security (RLS) blocked the database save. Please enable INSERT logic in your Supabase policies.');
+          } else {
+            console.log('Successfully saved to Supabase! Refetching history...');
+            fetchHistory();
           }
+        } catch (insertCrash) {
+          console.error('Exception strictly executing Supabase insert:', insertCrash);
         }
       }
     } catch (err: any) {
@@ -1585,7 +1616,17 @@ const Dashboard = ({ user }: { user: any }) => {
 
         {activeTab === 'previous-records' && (
           <div className="space-y-8">
-            <h2 className="text-2xl font-bold text-gray-900">Previous Records</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">Previous Records</h2>
+              <button 
+                onClick={fetchHistory}
+                disabled={isLoadingHistory}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 focus:outline-none transition flex items-center gap-2 disabled:opacity-50"
+              >
+                {isLoadingHistory ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Refresh Records
+              </button>
+            </div>
             
             {isLoadingHistory ? (
               <div className="flex flex-col items-center justify-center py-20">
