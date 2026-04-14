@@ -25,7 +25,8 @@ import {
   AlertTriangle,
   Lightbulb,
   Check,
-  Trash2
+  Trash2,
+  Brain
 } from 'lucide-react';
 import { getSupabase } from './lib/supabase';
 
@@ -105,8 +106,8 @@ const Navbar = ({ onAuthClick, user, onHomeClick, onInsightsClick }: { onAuthCli
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'glass-light py-2' : 'bg-transparent py-4'}`}>
       <div className="w-full px-8 flex justify-between items-center">
         <div className="flex items-center gap-2 cursor-pointer" onClick={onHomeClick}>
-          <div className="w-12 h-12 flex items-center justify-center">
-            <img src="/logo.png" alt="HireMatch Logo" className="w-full h-full object-contain" />
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center glow-indigo">
+            <Target className="text-white w-7 h-7" />
           </div>
           <span className={`text-4xl font-extrabold tracking-tight font-display ${scrolled ? 'text-gray-900' : 'text-white'}`}>
             HireMatch
@@ -384,20 +385,31 @@ const AuthPage = ({ mode, onModeChange, onBack }: { mode: 'login' | 'signup', on
 };
 
 const CustomDot = (props: any) => {
-  const { cx, cy, stroke, index, dataLength } = props;
+  const { cx, cy, stroke, index, dataLength, payload, onDotClick } = props;
   const isLatest = index === dataLength - 1;
 
   return (
-    <g>
+    <g
+      style={{ cursor: 'pointer' }}
+      onClick={() => onDotClick && onDotClick(payload)}
+    >
       {isLatest && (
         <circle
           cx={cx}
           cy={cy}
-          r={8}
+          r={12}
           fill={stroke}
-          className="animate-pulse opacity-20"
+          opacity={0.15}
         />
       )}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={8}
+        fill="transparent"
+        stroke="transparent"
+        strokeWidth={16}
+      />
       <circle
         cx={cx}
         cy={cy}
@@ -444,6 +456,218 @@ const CustomTooltip = ({ active, payload }: any) => {
     );
   }
   return null;
+};
+
+// ── Record Detail Modal ────────────────────────────────────────────────────────
+const RecordDetailModal = ({
+  record,
+  onClose,
+  onReanalyze,
+}: {
+  record: any;
+  onClose: () => void;
+  onReanalyze: (record: any) => void;
+}) => {
+  const hasFullData = !!record.result_data;
+  const resultData = hasFullData ? record.result_data : null;
+  const scoreColor =
+    record.score >= 80
+      ? 'text-emerald-500'
+      : record.score >= 60
+      ? 'text-amber-500'
+      : 'text-rose-500';
+  const scoreBg =
+    record.score >= 80
+      ? 'bg-emerald-500'
+      : record.score >= 60
+      ? 'bg-amber-500'
+      : 'bg-rose-500';
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-6"
+      style={{ background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)' }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 24 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        className="relative bg-white rounded-[2.5rem] p-8 max-w-lg w-full shadow-2xl border border-white/10 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Purple gradient header bar */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 rounded-t-[2.5rem] bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500" />
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-all"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* File info */}
+        <div className="flex items-center gap-4 mb-6 pr-10">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+            <FileText className="text-white w-7 h-7" />
+          </div>
+          <div>
+            <p className="font-bold text-gray-900 text-lg leading-tight">{record.resume_name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {new Date(record.created_at).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+          </div>
+        </div>
+
+        {/* Scores */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 text-center">
+            <p className={`text-3xl font-black ${scoreColor}`}>{record.score}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Resume Score</p>
+            <div className={`mt-2 inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold text-white ${scoreBg}`}>
+              {record.score >= 80 ? 'Excellent' : record.score >= 60 ? 'Good' : 'Needs Work'}
+            </div>
+          </div>
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
+            <p className="text-3xl font-black text-emerald-600">{record.ats_compatibility}%</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">ATS Score</p>
+            <div className={`mt-2 inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold text-white ${
+              record.ats_compatibility >= 80 ? 'bg-emerald-500' : 'bg-amber-500'
+            }`}>
+              {record.ats_compatibility >= 80 ? 'ATS Friendly' : 'Needs Improvement'}
+            </div>
+          </div>
+        </div>
+
+        {/* AI Summary */}
+        {hasFullData && resultData?.summary && (
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-indigo-500" />
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">AI Feedback Summary</p>
+            </div>
+            <p className="text-sm text-gray-700 leading-relaxed">{resultData.summary}</p>
+          </div>
+        )}
+
+        {/* Top suggestions */}
+        {hasFullData && resultData?.suggestions?.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              Top Suggestions
+            </p>
+            <div className="space-y-2">
+              {resultData.suggestions.slice(0, 2).map((s: string, i: number) => (
+                <div key={i} className="flex gap-3 p-3 rounded-xl bg-amber-50/60 border border-amber-100/60 text-xs text-gray-700">
+                  <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-[9px] font-bold text-amber-700 shrink-0">{i + 1}</span>
+                  {s}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!hasFullData && (
+          <div className="mb-6">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-indigo-500" />
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Score Interpretation</p>
+              </div>
+              <p className="text-sm text-gray-700 font-medium mb-4">
+                {record.score < 40 ? 'Your resume needs significant improvements to pass screening.' :
+                 record.score < 70 ? 'Your resume has a good foundation but needs optimization.' :
+                 'Your resume is strong and highly competitive for this role.'}
+              </p>
+
+              {/* Progress Indicator */}
+              <div className="w-full bg-indigo-100/50 rounded-full h-2.5 mb-2 overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${record.score}%` }}
+                  transition={{ duration: 1, ease: 'easeOut' }}
+                  className={`h-2.5 rounded-full ${
+                    record.score >= 70 ? 'bg-emerald-500' :
+                    record.score >= 40 ? 'bg-amber-500' :
+                    'bg-rose-500'
+                  }`}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                <span>0</span>
+                <span>50</span>
+                <span>100</span>
+              </div>
+            </div>
+
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              General Improvement Tips
+            </p>
+            <div className="space-y-2">
+              {(record.score < 40
+                ? [
+                    'Add more relevant keywords from the job description',
+                    'Improve overall formatting and readability',
+                    'Add measurable achievements to your experience',
+                    'Strengthen your professional summary section'
+                  ]
+                : record.score < 70
+                ? [
+                    'Good foundation, but optimize keywords for this role',
+                    'Add more quantifiable results (metrics, $$, %)',
+                    'Tailor your experience to match the exact requirements'
+                  ]
+                : [
+                    'Strong resume, fine-tune specific keywords for each role',
+                    'Ensure all formatting remains strictly ATS-friendly',
+                    'Focus on highlighting leadership or business impact'
+                  ]
+              ).map((tip, i) => (
+                <div key={i} className="flex gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs text-gray-700">
+                  <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                  {tip}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all text-sm"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => onReanalyze(record)}
+              className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold hover:from-indigo-500 hover:to-purple-500 transition-all text-sm shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Re-analyze this Resume
+            </button>
+          </div>
+          {!hasFullData && (
+            <p className="text-center text-[11px] text-gray-400 mt-1">
+              This is an older record. Some detailed insights are not available.
+            </p>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
 };
 
 const InsightsDashboard = ({ result, onReset }: { result: any, onReset: () => void }) => {
@@ -719,6 +943,192 @@ const InsightsDashboard = ({ result, onReset }: { result: any, onReset: () => vo
   );
 };
 
+const InterviewPrepView = ({ history }: { history: any[] }) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const generateQuestions = async () => {
+    setError(null);
+    setIsGenerating(true);
+    let textToSend = '';
+
+    try {
+      if (!selectedFile) throw new Error('Please upload a resume file.');
+      if (selectedFile.type === 'application/pdf') {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            textToSend += textContent.items.map((item: any) => item.str).join(' ') + '\\n';
+          }
+      } else if (selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        textToSend = result.value;
+      } else {
+        throw new Error('Unsupported file type. Please upload PDF or DOCX.');
+      }
+
+      if (!textToSend.trim()) {
+        throw new Error('Could not extract data. Please select a valid resume.');
+      }
+
+      const res = await fetch('/api/interview-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeText: textToSend })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate questions. The AI request timed out or the server was unreachable.');
+      }
+
+      const data = await res.json();
+      console.log('API Response rawText:', data.rawText);
+      const rawText = data.rawText.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```\\s*$/, '').trim();
+      
+      let parsedQuestions = [];
+      try {
+        const parsed = JSON.parse(rawText);
+        parsedQuestions = parsed.questions || [];
+      } catch (err) {
+        // Fallback for simple prompt that returns text list
+        const sections = rawText.split(/Q:\s*/i).filter((s: string) => s.trim().length > 5);
+        parsedQuestions = sections.map((section: string) => {
+          const parts = section.split(/Tip:\s*/i);
+          return {
+            category: 'Interview Prep',
+            question: parts[0]?.replace(/^[\d\-\*\.]+\s*/, '').trim() || '',
+            tip: parts[1]?.trim() || 'Prepare a clear, structured response outlining key metrics and technical constraints.'
+          };
+        }).filter((q: any) => q.question).slice(0, 10);
+      }
+      
+      setQuestions(parsedQuestions);
+      toast.success('Interview questions generated!');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex justify-center items-center">
+          <Brain className="w-6 h-6 text-indigo-600" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Interview Prep</h2>
+          <p className="text-gray-500 text-sm">Generate likely interview questions and tips based on your customized resume data.</p>
+        </div>
+      </div>
+
+      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
+        <div className="space-y-3">
+          <div 
+            onClick={() => document.getElementById('prep-resume-upload')?.click()}
+            className="p-8 rounded-2xl border-2 border-dashed border-gray-200 hover:border-indigo-400 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 bg-gray-50 hover:bg-indigo-50/50"
+          >
+            <input 
+              type="file" 
+              id="prep-resume-upload" 
+              className="hidden" 
+              onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])} 
+              accept=".pdf,.docx"
+            />
+            <div className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex justify-center items-center shadow-inner">
+              {selectedFile ? <Check className="w-6 h-6" /> : <CloudUpload className="w-6 h-6" />}
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-bold text-gray-900">{selectedFile ? selectedFile.name : 'Click to Upload Resume'}</p>
+              <p className="text-xs text-gray-500 mt-1">PDF or DOCX (Max 5MB)</p>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-5 rounded-2xl bg-rose-50 border border-rose-100 mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+              <p className="text-sm font-medium text-rose-700 leading-snug">{error}</p>
+            </div>
+            <button
+              onClick={generateQuestions}
+              className="px-5 py-2.5 rounded-xl bg-white border border-rose-200 text-rose-600 text-sm font-bold hover:bg-rose-50 transition-all flex items-center gap-2"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {isGenerating ? (
+          <div className="w-full py-5 rounded-2xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-7 h-7 text-indigo-600 animate-spin" />
+            <p className="text-indigo-600 font-bold text-sm">Generating your personalized interview questions, this may take a moment...</p>
+          </div>
+        ) : (
+          <button
+            onClick={generateQuestions}
+            disabled={isGenerating || !selectedFile}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold hover:from-indigo-500 hover:to-purple-500 transition-all shadow-lg shadow-indigo-200 flex justify-center items-center gap-2 disabled:opacity-50"
+          >
+            <Sparkles className="w-5 h-5" />
+            Generate Interview Questions
+          </button>
+        )}
+      </div>
+
+      {questions.length > 0 && (
+        <div className="space-y-5 pt-4">
+          <h3 className="text-xl font-bold text-gray-900 mb-6 px-2">Your Likely Questions</h3>
+          {questions.map((q, i) => {
+            const isTech = q.category === 'Technical Questions';
+            const isBehav = q.category === 'Behavioral Questions';
+            const headerColor = isTech ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : isBehav ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-600 bg-amber-50 border-amber-100';
+            
+            return (
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                key={i} 
+                className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden"
+              >
+                <div className={`px-5 py-3 border-b ${headerColor} flex items-center justify-between`}>
+                  <span className="text-xs font-bold uppercase tracking-wider">{q.category}</span>
+                  <span className="font-black opacity-30 text-sm">#{i + 1}</span>
+                </div>
+                <div className="p-6 space-y-5">
+                  <p className="text-lg font-bold text-gray-900 leading-relaxed">{q.question}</p>
+                  <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100 flex gap-4">
+                    <div className="mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-amber-500">
+                        <Lightbulb className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">How to answer</p>
+                      <p className="text-sm text-gray-700 leading-relaxed font-medium">{q.tip}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Dashboard = ({ user }: { user: any }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -731,6 +1141,9 @@ const Dashboard = ({ user }: { user: any }) => {
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  // New state for record detail modal & re-open analysis
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+  const [viewingAnalysis, setViewingAnalysis] = useState<any | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -927,7 +1340,8 @@ const Dashboard = ({ user }: { user: any }) => {
           user_id: user.id,
           resume_name: selectedFile.name,
           score: result.score,
-          ats_compatibility: result.ats_compatibility?.score || 0
+          ats_compatibility: result.ats_compatibility?.score || 0,
+          result_data: result
         });
         
         if (insertError) {
@@ -965,8 +1379,8 @@ const Dashboard = ({ user }: { user: any }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col p-6 fixed h-full">
         <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 flex items-center justify-center">
-            <img src="/logo.png" alt="HireMatch Logo" className="w-full h-full object-contain" />
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center glow-indigo">
+            <Target className="text-white w-6 h-6" />
           </div>
           <span className="text-2xl font-extrabold tracking-tight font-display text-primary">
             HireMatch
@@ -976,6 +1390,7 @@ const Dashboard = ({ user }: { user: any }) => {
         <nav className="flex-1 space-y-2">
           <SidebarItem id="dashboard" icon={Home} label="Dashboard" />
           <SidebarItem id="previous-records" icon={BarChart3} label="Previous Records" />
+          <SidebarItem id="interview-prep" icon={Brain} label="Interview Prep" />
           <SidebarItem id="settings" icon={Settings} label="Settings" />
         </nav>
 
@@ -1146,11 +1561,11 @@ const Dashboard = ({ user }: { user: any }) => {
 
                           <div className="grid grid-cols-3 gap-3 w-full pt-4">
                             <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                              <p className="text-xl font-black text-primary"><CountUp end={98} suffix="%" /></p>
+                              <p className="text-xl font-black text-primary"><CountUp end={95} suffix="%" /></p>
                               <p className="text-[8px] text-gray-500 font-bold uppercase tracking-tighter">Accuracy</p>
                             </div>
                             <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                              <p className="text-xl font-black text-primary"><CountUp end={2} suffix="s" /></p>
+                              <p className="text-xl font-black text-primary"><CountUp end={10} suffix="s" /></p>
                               <p className="text-[8px] text-gray-500 font-bold uppercase tracking-tighter">Time</p>
                             </div>
                             <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100">
@@ -1231,7 +1646,7 @@ const Dashboard = ({ user }: { user: any }) => {
                           strokeWidth={3} 
                           fillOpacity={1} 
                           fill="url(#colorScore)"
-                          dot={(props) => <CustomDot {...props} dataLength={history.length} />}
+                          dot={(props) => <CustomDot {...props} dataLength={history.length} onDotClick={(payload: any) => setSelectedRecord(payload)} />}
                           activeDot={{ r: 8, strokeWidth: 0 }}
                         />
                         <Area 
@@ -1242,7 +1657,7 @@ const Dashboard = ({ user }: { user: any }) => {
                           strokeWidth={3} 
                           fillOpacity={1} 
                           fill="url(#colorATS)"
-                          dot={(props) => <CustomDot {...props} dataLength={history.length} />}
+                          dot={(props) => <CustomDot {...props} dataLength={history.length} onDotClick={(payload: any) => setSelectedRecord(payload)} />}
                           activeDot={{ r: 8, strokeWidth: 0 }}
                         />
                       </AreaChart>
@@ -1259,20 +1674,24 @@ const Dashboard = ({ user }: { user: any }) => {
 
                 {/* List Section */}
                 <div className="grid gap-4">
+                  <div className="flex items-center gap-2 px-1">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Click any entry to view details</p>
+                  </div>
                   {[...history].reverse().map((record, i) => (
                     <motion.div 
                       key={record.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.05 }}
-                      className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between hover:border-primary/20 transition-all"
+                      onClick={() => setSelectedRecord(record)}
+                      className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center">
-                          <FileText className="text-gray-400 w-6 h-6" />
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+                          <FileText className="text-indigo-400 group-hover:text-indigo-600 w-6 h-6 transition-colors" />
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900">{record.resume_name}</p>
+                          <p className="font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">{record.resume_name}</p>
                           <p className="text-xs text-gray-500">
                             {new Date(record.created_at).toLocaleDateString('en-GB', { 
                               day: '2-digit', 
@@ -1293,7 +1712,7 @@ const Dashboard = ({ user }: { user: any }) => {
                           <p className="text-[10px] text-gray-400 font-bold uppercase">Score</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xl font-bold text-emerald-500">{record.ats_compatibility}</p>
+                          <p className="text-xl font-bold text-emerald-500">{record.ats_compatibility}%</p>
                           <p className="text-[10px] text-gray-400 font-bold uppercase">ATS</p>
                         </div>
                         <button 
@@ -1385,7 +1804,67 @@ const Dashboard = ({ user }: { user: any }) => {
             </div>
           </div>
         )}
+
+        {activeTab === 'interview-prep' && (
+          <InterviewPrepView history={history} />
+        )}
       </main>
+
+      {/* Full Re-opened Analysis Overlay */}
+      <AnimatePresence>
+        {viewingAnalysis && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed inset-0 z-[150] bg-gray-50 overflow-y-auto"
+          >
+            <div className="max-w-5xl mx-auto p-10">
+              <div className="flex items-center gap-3 mb-8">
+                <button
+                  onClick={() => setViewingAnalysis(null)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-all shadow-sm text-sm"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Records
+                </button>
+                <div className="px-4 py-2 rounded-2xl bg-indigo-50 border border-indigo-100">
+                  <p className="text-xs font-bold text-indigo-600">{viewingAnalysis._resumeName}</p>
+                </div>
+              </div>
+              <InsightsDashboard
+                result={viewingAnalysis}
+                onReset={() => setViewingAnalysis(null)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Record Detail Modal */}
+      <AnimatePresence>
+        {selectedRecord && !viewingAnalysis && (
+          <RecordDetailModal
+            record={selectedRecord}
+            onClose={() => setSelectedRecord(null)}
+            onReanalyze={(rec) => {
+              if (rec.result_data) {
+                const data = { ...rec.result_data, _resumeName: rec.resume_name };
+                setViewingAnalysis(data);
+                setSelectedRecord(null);
+              } else {
+                setSelectedRecord(null);
+                setActiveTab('dashboard');
+                // Give React time to switch tabs before popping the file dialog
+                setTimeout(() => {
+                  document.getElementById('resume-upload')?.click();
+                  toast(`Please select "${rec.resume_name}" to re-analyze`, { icon: '📁', duration: 4000 });
+                }, 300);
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
@@ -1724,8 +2203,8 @@ function App() {
       <footer className="py-20 px-6 bg-dark-bg border-t border-white/5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src="/logo.png" alt="HireMatch Logo" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+              <Target className="text-white w-6 h-6" />
             </div>
             <span className="text-3xl font-extrabold tracking-tight font-display text-white">
               HireMatch

@@ -84,6 +84,16 @@ async function startServer() {
       const prompt = `You are an expert ATS (Applicant Tracking System) and career coach AI.
 Analyze the given resume against the job description.
 
+CRITICAL SCORING INSTRUCTIONS:
+- You must calculate a REALISTIC and STRICT score between 0-100 based on the actual content match.
+- Do NOT just default to 85. Vary the score deeply based on the resume's true quality.
+- Scoring Rubric:
+  - 0-49: Poor match. Unrelated experience or missing many key skills.
+  - 50-64: Average match. Has some relevant background but missing core requirements.
+  - 65-79: Good match. Meets most requirements, standard experience.
+  - 80-95: Excellent match. Highly tailored, strong metrics, hits almost all keywords.
+- Both the main "score" and the "ats_compatibility.score" must follow this strict grading logic.
+
 Return ONLY a valid JSON object with NO markdown, NO code fences, and NO extra text. Just raw JSON:
 {
   "candidate_name": "<name found in resume or 'Candidate'>",
@@ -167,6 +177,92 @@ ${jobDescription}`;
       const rawText = data?.choices?.[0]?.message?.content ?? '';
 
       res.json({ rawText });
+    } catch (error: any) {
+      console.error('Error calling NVIDIA API:', error);
+      res.status(500).json({ error: 'Failed to call AI service: ' + error.message });
+    }
+  });
+
+  // API Route: Generate Interview Questions via NVIDIA NIM
+  app.post('/api/interview-questions', async (req, res) => {
+    try {
+      const { resumeText } = req.body;
+
+      if (!resumeText) {
+        return res.status(400).json({ error: 'resumeText is required.' });
+      }
+
+      const apiKey = process.env.VITE_NVIDIA_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: 'NVIDIA API key is not configured on the server.' });
+      }
+
+      const prompt = `Based on this resume, list 10 interview questions the candidate should prepare for. For each question, provide a unique and specific tip (1-2 sentences) on how to answer it based on the question itself. Follow these guidelines:
+- For technical questions: give a specific technical approach tip
+- For achievement questions (like 'how did you reduce time by 40%'): tell them to mention exact numbers and tools used
+- For project questions: suggest explaining the problem, their role, and the outcome
+- For behavioral questions: suggest using the STAR method
+
+Output EXACTLY this format for each question and do NOT wrap it in JSON. Keep it simple and direct plain text:
+Q: [Question]
+Tip: [Unique tip]
+
+Resume:
+${resumeText}`;
+
+      let lastErrorMsg = '';
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+        try {
+          console.log(`[Interview API] Sending attempt ${attempt} to NVIDIA NIM...`);
+          const nvidiaRes = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'meta/llama-3.1-8b-instruct',
+              messages: [{ role: 'user', content: prompt }],
+              temperature: 0.5,
+              max_tokens: 2048,
+              stream: false,
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (nvidiaRes.ok) {
+            const data = await nvidiaRes.json();
+            const rawText = data?.choices?.[0]?.message?.content ?? '';
+            console.log(`[Interview API] Success response:`, rawText.slice(0, 100));
+            return res.json({ rawText });
+          } else {
+            const errBody = await nvidiaRes.json().catch(() => ({}));
+            lastErrorMsg = errBody?.detail || errBody?.message || nvidiaRes.statusText;
+            console.error(`NVIDIA API error (Attempt ${attempt}):`, nvidiaRes.status, lastErrorMsg);
+          }
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            lastErrorMsg = 'The AI request timed out after 60 seconds.';
+            console.error(`NVIDIA API timeout (Attempt ${attempt})`);
+          } else {
+            lastErrorMsg = fetchErr.message;
+            console.error(`NVIDIA API fetch error (Attempt ${attempt}):`, fetchErr.message);
+          }
+        }
+
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, attempt * 2000));
+        }
+      }
+
+      return res.status(500).json({ error: `Server was unable to process request after 3 attempts. Last error: ${lastErrorMsg}` });
     } catch (error: any) {
       console.error('Error calling NVIDIA API:', error);
       res.status(500).json({ error: 'Failed to call AI service: ' + error.message });
