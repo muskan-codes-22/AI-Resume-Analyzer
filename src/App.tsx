@@ -50,6 +50,9 @@ import {
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 import { InsightsPage } from './components/InsightsPage';
+import { BlogArticle } from './components/BlogArticle';
+import { BlogsPage } from './components/BlogsPage';
+import { CareerGrowthArticle } from './components/CareerGrowthArticle';
 
 // --- Constants ---
 
@@ -86,7 +89,7 @@ const CountUp = ({ end, duration = 2000, suffix = "" }: { end: number, duration?
   return <span>{count}{suffix}</span>;
 };
 
-const Navbar = ({ onAuthClick, user, onHomeClick, onInsightsClick }: { onAuthClick: (mode: 'login' | 'signup') => void, user: any, onHomeClick: () => void, onInsightsClick: () => void }) => {
+const Navbar = ({ onAuthClick, user, onHomeClick, onInsightsClick, onBlogsClick }: { onAuthClick: (mode: 'login' | 'signup') => void, user: any, onHomeClick: () => void, onInsightsClick: () => void, onBlogsClick: () => void }) => {
   const [scrolled, setScrolled] = useState(false);
 
   const handleLogout = async () => {
@@ -116,7 +119,7 @@ const Navbar = ({ onAuthClick, user, onHomeClick, onInsightsClick }: { onAuthCli
         
         <div className={`hidden md:flex items-center gap-8 text-base font-semibold transition-colors duration-500 ${scrolled ? 'text-gray-600' : 'text-white/80'}`}>
           <button onClick={onInsightsClick} className="hover:text-primary transition-colors">Insights</button>
-          <a href="#" className="hover:text-primary transition-colors">Blogs</a>
+          <button onClick={onBlogsClick} className="hover:text-primary transition-colors">Blogs</button>
           <a href="#" className="hover:text-primary transition-colors">Contacts</a>
         </div>
 
@@ -1948,7 +1951,7 @@ const Dashboard = ({ user }: { user: any }) => {
 };
 
 function App() {
-  const [view, setView] = useState<'home' | 'login' | 'signup' | 'insights'>('home');
+  const [view, setView] = useState<string>('home');
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -1996,6 +1999,43 @@ function App() {
     return <InsightsPage onBack={() => setView('home')} />;
   }
 
+  if (view.startsWith('/blogs/')) {
+    const isCareerGrowth = [
+      '/blogs/how-to-get-first-internship',
+      '/blogs/best-skills-developers-2026',
+      '/blogs/build-portfolio-that-gets-you-hired',
+      '/blogs/github-projects-impress-recruiters',
+    ].includes(view);
+
+    if (isCareerGrowth) {
+      return (
+        <CareerGrowthArticle 
+          route={view} 
+          onBack={() => setView('blogs')} 
+          onCTA={() => {
+            setView('home');
+            window.scrollTo(0, 0);
+          }} 
+        />
+      );
+    }
+
+    return (
+      <BlogArticle 
+        route={view} 
+        onBack={() => setView('blogs')} 
+        onCTA={() => {
+          setView('home');
+          window.scrollTo(0, 0);
+        }} 
+      />
+    );
+  }
+
+  if (view === 'blogs') {
+    return <BlogsPage onBack={() => setView('home')} setView={setView} />;
+  }
+
   return (
     <div className="min-h-screen bg-dark-bg selection:bg-primary/30 selection:text-white overflow-x-hidden">
       <Navbar 
@@ -2003,6 +2043,7 @@ function App() {
         user={user} 
         onHomeClick={() => setView('home')} 
         onInsightsClick={() => setView('insights')}
+        onBlogsClick={() => setView('blogs')}
       />
       
       {/* Hero Section */}
@@ -2239,6 +2280,8 @@ function App() {
           </div>
         </div>
       </section>
+
+
 
       {/* Footer */}
       <footer className="py-20 px-6 bg-dark-bg border-t border-white/5">
