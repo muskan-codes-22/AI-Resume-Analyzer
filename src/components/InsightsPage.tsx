@@ -34,7 +34,8 @@ const ARTICLES = [
     description: 'Learn how to craft a professional summary that grabs attention in 6 seconds.',
     icon: FileText,
     color: 'text-blue-400',
-    bg: 'bg-blue-400/10'
+    bg: 'bg-blue-400/10',
+    id: 'how-to-write-a-winning-summary'
   },
   {
     category: 'tips',
@@ -42,7 +43,8 @@ const ARTICLES = [
     description: 'Use numbers and data to prove your impact and stand out from other candidates.',
     icon: TrendingUp,
     color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10'
+    bg: 'bg-emerald-400/10',
+    id: 'quantifying-your-achievements'
   },
   {
     category: 'ats',
@@ -50,7 +52,8 @@ const ARTICLES = [
     description: 'A deep dive into Applicant Tracking Systems and why they matter for your job search.',
     icon: Cpu,
     color: 'text-purple-400',
-    bg: 'bg-purple-400/10'
+    bg: 'bg-purple-400/10',
+    id: 'what-is-an-ats'
   },
   {
     category: 'ats',
@@ -58,49 +61,208 @@ const ARTICLES = [
     description: 'Avoid these common formatting mistakes that get resumes rejected by AI filters.',
     icon: Layout,
     color: 'text-amber-400',
-    bg: 'bg-amber-400/10'
-  },
-  {
-    category: 'trends',
-    title: 'Top Skills for AI Engineers',
-    description: 'The most in-demand skills for AI and Machine Learning roles in 2024.',
-    icon: Zap,
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-400/10'
-  },
-  {
-    category: 'career',
-    title: 'Building a Standout Portfolio',
-    description: 'How to showcase your projects effectively to impress hiring managers.',
-    icon: Code,
-    color: 'text-rose-400',
-    bg: 'bg-rose-400/10'
-  },
-  {
-    category: 'career',
-    title: 'Landing Your First Internship',
-    description: 'A step-by-step guide for students to secure their first tech internship.',
-    icon: Briefcase,
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-400/10'
-  },
-  {
-    category: 'tips',
-    title: 'The Power of Action Verbs',
-    description: 'Replace passive language with strong action verbs to make your resume dynamic.',
-    icon: Zap,
-    color: 'text-orange-400',
-    bg: 'bg-orange-400/10'
-  },
-  {
-    category: 'career',
-    title: 'Networking in the Tech Industry',
-    description: 'How to build meaningful professional relationships that lead to referrals.',
-    icon: Award,
-    color: 'text-pink-400',
-    bg: 'bg-pink-400/10'
+    bg: 'bg-amber-400/10',
+    id: 'formatting-for-ats-success'
   }
 ];
+
+const INSIGHTS_ARTICLES_DATA: Record<string, any> = {
+  'how-to-write-a-winning-summary': {
+    title: 'How to Write a Winning Resume Summary',
+    author: 'HireMatch Insights',
+    date: 'April 15, 2026',
+    intro: 'Explain that recruiters spend only about 6 seconds scanning a resume and the summary section is the first thing they read.',
+    sections: [
+      {
+        title: 'Section 1 — What is a Resume Summary?',
+        content: 'Explain that a resume summary is a short paragraph at the top of a resume highlighting skills, experience, and career goals.'
+      },
+      {
+        title: 'Section 2 — Why a Strong Summary Matters',
+        content: 'Explain how it:\n• captures recruiter attention\n• highlights key qualifications\n• increases interview chances'
+      },
+      {
+        title: 'Section 3 — Example of a Weak Resume Summary',
+        content: 'Provide a short example of a generic summary that lacks impact. For example: "Hardworking professional seeking a challenging role to utilize my skills."'
+      },
+      {
+        title: 'Section 4 — Example of a Strong Resume Summary',
+        content: 'Provide an improved version that includes skills, results, and career focus. For example: "Data-driven Marketing Manager with 5+ years of experience increasing online sales by 30%."'
+      },
+      {
+        title: 'Section 5 — Tips for Writing a Strong Summary',
+        content: 'Include tips such as:\n• keep it under 4 lines\n• include measurable achievements\n• align with the job description\n• mention relevant skills'
+      }
+    ],
+    tips: [
+      'keep it under 4 lines',
+      'include measurable achievements',
+      'align with the job description',
+      'mention relevant skills'
+    ],
+    conclusion: 'Encourage job seekers to personalize their summaries for each job application.',
+    ctaTitle: 'Improve Your Resume Instantly',
+    ctaText: 'Upload your resume and receive an AI-powered relevance score.',
+    ctaButton: 'Analyze Your Resume'
+  },
+  'quantifying-your-achievements': {
+    title: 'How to Quantify Your Achievements on a Resume',
+    author: 'HireMatch Insights',
+    date: 'April 15, 2026',
+    intro: 'Explain that recruiters prefer measurable results instead of vague responsibilities.',
+    sections: [
+      {
+        title: 'Section 1 — What Does Quantifying Achievements Mean?',
+        content: 'Explain using numbers, percentages, and metrics to demonstrate impact.'
+      },
+      {
+        title: 'Section 2 — Weak vs Strong Examples',
+        content: 'Weak:\nManaged social media accounts.\n\nStrong:\nManaged social media accounts and increased engagement by 45% in six months.'
+      },
+      {
+        title: 'Section 3 — Types of Metrics You Can Use',
+        content: 'Examples:\n• revenue growth\n• efficiency improvements\n• user growth\n• project completion time'
+      },
+      {
+        title: 'Section 4 — How Students Can Quantify Projects',
+        content: 'Explain how students can include:\n• GitHub stars\n• users reached\n• performance improvements\n• project outcomes'
+      },
+      {
+        title: 'Section 5 — Tips for Writing Impactful Achievements',
+        content: '• use action verbs\n• add numbers whenever possible\n• focus on results'
+      }
+    ],
+    tips: [
+      'use action verbs',
+      'add numbers whenever possible',
+      'focus on results'
+    ],
+    conclusion: 'Explain that quantified achievements make resumes more convincing and professional.',
+    ctaTitle: 'Check Your Resume Score',
+    ctaText: 'Upload your resume and receive an AI-powered relevance score.',
+    ctaButton: 'Analyze Your Resume'
+  },
+  'what-is-an-ats': {
+    title: 'What is an Applicant Tracking System (ATS)?',
+    author: 'HireMatch Insights',
+    date: 'April 15, 2026',
+    intro: 'Explain that most companies use ATS software to filter resumes before recruiters review them.',
+    sections: [
+      {
+        title: 'Section 1 — How ATS Works',
+        content: 'Explain the process:\n1. Resume submission\n2. Keyword scanning\n3. Candidate ranking\n4. Recruiter review'
+      },
+      {
+        title: 'Section 2 — Why ATS Rejects Many Resumes',
+        content: 'Common reasons:\n• missing keywords\n• complex formatting\n• images or graphics\n• unclear section headings'
+      },
+      {
+        title: 'Section 3 — How to Make Your Resume ATS-Friendly',
+        content: 'Include tips:\n• use simple formatting\n• include relevant keywords\n• avoid tables and graphics\n• use standard headings'
+      },
+      {
+        title: 'Section 4 — Example of an ATS-Friendly Resume Layout',
+        content: 'Sections:\nSummary\nSkills\nExperience\nProjects\nEducation'
+      }
+    ],
+    tips: [
+      'use simple formatting',
+      'include relevant keywords',
+      'avoid tables and graphics',
+      'use standard headings'
+    ],
+    conclusion: 'Explain that optimizing for ATS greatly increases interview chances.',
+    ctaTitle: 'Check Your Resume Score',
+    ctaText: 'Upload your resume and get an ATS compatibility check.',
+    ctaButton: 'Check Your Resume Score'
+  },
+  'formatting-for-ats-success': {
+    title: 'Formatting Your Resume for ATS Success',
+    author: 'HireMatch Insights',
+    date: 'April 15, 2026',
+    intro: 'Explain that even qualified candidates can be rejected if their resume formatting cannot be read by ATS software.',
+    sections: [
+      {
+        title: 'Section 1 — Common Formatting Mistakes',
+        content: 'Examples:\n• using tables\n• adding icons or graphics\n• unusual fonts\n• multi-column layouts'
+      },
+      {
+        title: 'Section 2 — ATS-Friendly Resume Formatting',
+        content: 'Recommendations:\n• simple fonts such as Arial or Calibri\n• clear headings\n• single-column layout\n• consistent spacing'
+      },
+      {
+        title: 'Section 3 — Correct Resume Section Order',
+        content: 'Recommended structure:\nSummary\nSkills\nExperience\nProjects\nEducation'
+      },
+      {
+        title: 'Section 4 — File Format Best Practices',
+        content: 'Explain when to use:\nPDF\nDOCX'
+      },
+      {
+        title: 'Section 5 — Quick ATS Checklist',
+        content: 'Provide a short checklist job seekers can follow.'
+      }
+    ],
+    tips: [
+      'simple fonts such as Arial or Calibri',
+      'clear headings',
+      'single-column layout',
+      'consistent spacing'
+    ],
+    conclusion: 'Emphasize that clean formatting improves ATS readability.',
+    ctaTitle: 'Test Your Resume',
+    ctaText: 'Use our AI to test if your resume formatting passes ATS scans.',
+    ctaButton: 'Analyze Resume Now'
+  },
+  'understanding-ats-algorithm': {
+    title: 'Understanding the ATS Algorithm',
+    author: 'HireMatch Insights',
+    date: 'April 16, 2026',
+    intro: 'Most Fortune 500 companies use ATS software to automatically filter resumes before recruiters review them. Many resumes are rejected due to formatting issues or missing keywords.',
+    sections: [
+      {
+        title: 'Section 1 — What is an Applicant Tracking System (ATS)?',
+        content: 'ATS is recruitment software used to:\n• collect resumes\n• scan candidate information\n• rank applicants\n• help recruiters manage hiring pipelines.'
+      },
+      {
+        title: 'Section 2 — How the ATS Algorithm Works',
+        content: 'The typical ATS pipeline:\n\n1. Resume Upload\nThe candidate submits a resume through an online application.\n\n2. Resume Parsing\nThe ATS extracts information such as:\n• name\n• contact details\n• work experience\n• skills\n• education\n\n3. Keyword Matching\nThe ATS compares resume keywords with the job description.\n\n4. Candidate Scoring\nEach resume receives a relevance score based on:\n• keyword matches\n• experience relevance\n• skill alignment\n\n5. Recruiter Review\nTop-ranked resumes are shown to recruiters.'
+      },
+      {
+        title: 'Section 3 — Key Factors ATS Uses to Rank Resumes',
+        content: 'The most important ranking signals:\n• keyword relevance\n• skills matching\n• work experience\n• resume structure\n• job title similarity'
+      },
+      {
+        title: 'Section 4 — Common Reasons ATS Rejects Resumes',
+        content: 'Issues such as:\n• missing keywords\n• complex formatting\n• tables or graphics\n• unusual section headings\n• PDF parsing issues in some systems'
+      },
+      {
+        title: 'Section 5 — How to Optimize Your Resume for ATS',
+        content: 'Practical tips:\n\nUse clear section headings:\nSummary\nSkills\nExperience\nProjects\nEducation\n\nInclude keywords from the job description.\n\nAvoid:\n• tables\n• images\n• multi-column layouts.'
+      },
+      {
+        title: 'Section 6 — Example of an ATS-Friendly Resume Structure',
+        content: 'Clean structure:\nProfessional Summary\nSkills\nProfessional Experience\nProjects\nEducation'
+      },
+      {
+        title: 'Section 7 — Future of AI in Resume Screening',
+        content: 'AI and machine learning are improving ATS systems through:\n• semantic search\n• AI resume scoring\n• skill extraction\n• contextual candidate ranking.'
+      }
+    ],
+    tips: [
+      'Use standard clear section headings',
+      'Include keywords from the job description',
+      'Avoid tables, images, and multi-column layouts',
+      'Ensure skills and job title alignment'
+    ],
+    conclusion: 'Understanding ATS systems helps job seekers optimize their resumes and increase interview chances.',
+    ctaTitle: 'Test Your Resume Against an AI System',
+    ctaText: 'Upload your resume and instantly see how well it performs against job descriptions using our AI Resume Analyzer.',
+    ctaButton: 'Analyze Your Resume Now',
+    onCTAClick: 'home' 
+  }
+};
+
 
 const SKILL_TRENDS = [
   {
@@ -133,10 +295,107 @@ import { Layout } from 'lucide-react';
 
 export const InsightsPage = ({ onBack }: { onBack: () => void }) => {
   const [activeCategory, setActiveCategory] = React.useState('all');
+  const [activeArticleId, setActiveArticleId] = React.useState<string | null>(null);
 
   const filteredArticles = activeCategory === 'all' 
     ? ARTICLES 
     : ARTICLES.filter(a => a.category === activeCategory);
+
+  if (activeArticleId && INSIGHTS_ARTICLES_DATA[activeArticleId]) {
+    const article = INSIGHTS_ARTICLES_DATA[activeArticleId];
+    return (
+      <div className="min-h-screen bg-gray-50 text-gray-900 selection:bg-primary/30 selection:text-white pb-20">
+        <nav className="bg-white border-b border-gray-200 py-4 px-6 sticky top-0 z-50">
+          <div className="max-w-4xl mx-auto flex justify-between items-center">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                <Target className="text-white w-6 h-6" />
+              </div>
+              <span className="text-2xl font-extrabold tracking-tight font-display text-gray-900">
+                HireMatch
+              </span>
+            </div>
+            <button 
+              onClick={() => setActiveArticleId(null)}
+              className="flex items-center gap-2 text-gray-500 hover:text-primary transition-colors font-semibold"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to Insights
+            </button>
+          </div>
+        </nav>
+
+        <main className="max-w-4xl mx-auto px-6 py-16 space-y-16 bg-white my-10 rounded-[2.5rem] shadow-sm border border-gray-100">
+          
+          <header className="space-y-8 text-center max-w-3xl mx-auto pb-10 border-b border-gray-100">
+            <div className="inline-block px-4 py-1.5 rounded-full bg-indigo-50 text-primary text-xs font-bold uppercase tracking-widest mb-2">
+              Insights
+            </div>
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-4xl lg:text-5xl font-bold text-gray-900 leading-[1.2]"
+            >
+              {article.title}
+            </motion.h1>
+            <div className="flex items-center justify-center gap-4 text-sm font-medium text-gray-500 pt-4">
+              <span className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                  {article.author.charAt(0)}
+                </div>
+                {article.author}
+              </span>
+              <span>•</span>
+              <span>{article.date}</span>
+            </div>
+          </header>
+
+          <section className="space-y-4 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-700 leading-relaxed font-medium whitespace-pre-wrap">
+              {article.intro}
+            </p>
+          </section>
+
+          <div className="max-w-3xl mx-auto space-y-12">
+            {article.sections.map((section: any, idx: number) => (
+              <section key={idx} className="space-y-4">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center text-sm">
+                    {idx + 1}
+                  </div>
+                  {section.title.replace(/^Section \d+ — /, '')}
+                </h2>
+                <p className="text-lg text-gray-600 leading-relaxed pl-11 whitespace-pre-wrap">
+                  {section.content}
+                </p>
+              </section>
+            ))}
+          </div>
+
+          <section className="space-y-4 max-w-3xl mx-auto pb-12 border-b border-gray-100">
+            <h2 className="text-2xl font-bold text-gray-900">Conclusion</h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              {article.conclusion}
+            </p>
+          </section>
+
+          <div className="flex flex-col items-center text-center space-y-6 pt-4">
+            <div className="space-y-2">
+              <h3 className="text-3xl font-bold text-gray-900">{article.ctaTitle}</h3>
+              <p className="text-lg text-gray-500 max-w-lg mx-auto">{article.ctaText}</p>
+            </div>
+            <button 
+              onClick={onBack}
+              className="px-10 py-5 rounded-3xl bg-primary text-white font-bold text-lg hover:bg-indigo-500 transition-all shadow-xl shadow-primary/30 flex items-center justify-center gap-3 w-full sm:w-auto"
+            >
+              {article.ctaButton}
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dark-bg text-white selection:bg-primary/30">
@@ -214,6 +473,7 @@ export const InsightsPage = ({ onBack }: { onBack: () => void }) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
               whileHover={{ y: -10 }}
+              onClick={() => setActiveArticleId(article.id)}
               className="group p-8 rounded-[2.5rem] bg-dark-surface border border-white/5 hover:border-white/10 transition-all cursor-pointer relative overflow-hidden"
             >
               <div className={`absolute -top-12 -right-12 w-24 h-24 ${article.bg} blur-2xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity`} />
@@ -308,7 +568,10 @@ export const InsightsPage = ({ onBack }: { onBack: () => void }) => {
               Learn how to optimize your document structure, keywords, and formatting to 
               ensure you pass the digital gatekeeper.
             </p>
-            <button className="px-8 py-4 rounded-2xl bg-white text-dark-bg font-bold hover:bg-primary hover:text-white transition-all">
+            <button 
+              onClick={() => setActiveArticleId('understanding-ats-algorithm')}
+              className="px-8 py-4 rounded-2xl bg-white text-dark-bg font-bold hover:bg-primary hover:text-white transition-all"
+            >
               Read the Full Guide
             </button>
           </div>
